@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/HsinPu/AIDirectorSkills/main/skills/film-director/references/asset-manifest.schema.json",
+  "title": "AI Director Skills / Film Director Asset Manifest",
+  "type": "object",
+  "required": ["schema_version", "id", "version", "source", "license", "units", "root_collection", "lods"],
+  "properties": {
+    "schema_version": {
+      "enum": ["1.1", "1.2"],
+      "description": "1.2 版新增選用的地點、內容、升版與驗證紀錄；1.1 版清單仍有效。"
+    },
+    "id": {"type": "string", "minLength": 1},
+    "version": {"type": "string", "minLength": 1},
+    "category": {"type": "string"},
+    "asset_kind": {
+      "type": "string",
+      "description": "建議值包括 location_set、prop、character、animation、material 或 environment_module。完整地點預設以 location_set 作為可重用單位。"
+    },
+    "reuse_scope": {
+      "enum": ["project_only", "shared_library", "draft"],
+      "description": "此素材可重用的範圍。公開共享前仍須審查授權與相依項目。"
+    },
+    "source": {
+      "type": "object",
+      "required": ["url", "asset_path"],
+      "properties": {
+        "url": {"type": ["string", "null"], "description": "原始素材頁面；內部自製且無公開網址的素材使用 null。"},
+        "asset_path": {"type": "string", "minLength": 1, "description": "相對於素材庫根目錄的路徑。"},
+        "downloaded_at": {"type": ["string", "null"], "format": "date-time"},
+        "sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"}
+      }
+    },
+    "license": {
+      "type": "object",
+      "required": ["name", "status", "url"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "status": {"enum": ["verified", "unverified"]},
+        "url": {"type": ["string", "null"]},
+        "license_file": {"type": ["string", "null"], "description": "相對於素材庫根目錄的已保存授權文字。"},
+        "attribution": {"type": ["string", "null"]},
+        "redistribution": {"enum": ["allowed", "restricted", "unknown"]},
+        "notes": {"type": "string"}
+      }
+    },
+    "units": {"const": "m"},
+    "root_collection": {"type": "string", "minLength": 1},
+    "forward_axis": {"enum": ["X", "-X", "Y", "-Y", "Z", "-Z"]},
+    "up_axis": {"const": "Z"},
+    "lods": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["level", "collection", "triangles"],
+        "properties": {
+          "level": {"type": "integer", "minimum": 0},
+          "collection": {"type": "string", "minLength": 1},
+          "triangles": {"type": "integer", "minimum": 0},
+          "material_slots": {"type": "integer", "minimum": 0},
+          "texture_max_px": {"type": "integer", "minimum": 0},
+          "texture_mb": {"type": "number", "minimum": 0},
+          "screen_size_min_px": {"type": ["number", "null"], "minimum": 0}
+        }
+      }
+    },
+    "rig": {
+      "type": ["object", "null"],
+      "properties": {
+        "armature_object": {"type": "string"},
+        "skeleton_id": {"type": "string"},
+        "rest_pose": {"type": "string"},
+        "root_motion_bone": {"type": ["string", "null"]},
+        "retarget_profile": {"type": ["string", "null"]}
+      }
+    },
+    "animations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "action", "frame_range", "fps", "loop", "root_motion"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "action": {"type": "string", "minLength": 1},
+          "frame_range": {"type": "array", "items": {"type": "integer"}, "minItems": 2, "maxItems": 2},
+          "fps": {"type": "number", "exclusiveMinimum": 0},
+          "loop": {"type": "boolean"},
+          "root_motion": {"enum": ["in_place", "root_bone", "object", "unknown"]},
+          "contact_events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["frame", "effector", "type"],
+              "properties": {
+                "frame": {"type": "integer"},
+                "effector": {"type": "string"},
+                "type": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "location_contract": {
+      "type": ["object", "null"],
+      "description": "完整可重用地點的選用空間約定；只描述固定空間與介面，不包含場景表演。",
+      "properties": {
+        "spatial_topology": {"type": ["string", "null"], "description": "已記錄配置／拓樸的相對路徑或簡短識別碼。"},
+        "functional_zones": {"type": "array", "items": {"type": "string"}},
+        "portals": {"type": "array", "items": {"type": "string"}},
+        "staging_anchors": {"type": "array", "items": {"type": "string"}},
+        "collision_collection": {"type": ["string", "null"]},
+        "nav_areas": {"type": "array", "items": {"type": "string"}},
+        "bounds": {
+          "type": ["object", "null"],
+          "properties": {
+            "min": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+            "max": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3}
+          }
+        }
+      }
+    },
+    "content_contract": {
+      "type": ["object", "null"],
+      "description": "選用紀錄：從可重用地點套件中移除的資料。須以 Blender 檢查證明套件乾淨，不能只看這項宣告。",
+      "properties": {
+        "contains_cameras": {"type": "boolean"},
+        "contains_timeline_markers": {"type": "boolean"},
+        "contains_character_objects": {"type": "boolean"},
+        "contains_character_paths": {"type": "boolean"},
+        "contains_animation_data": {"type": "boolean"},
+        "contains_storyboard_data": {"type": "boolean"},
+        "contains_scene_lighting": {"type": "boolean"},
+        "contains_prompt_data": {"type": "boolean"},
+        "contains_tempo_data": {"type": "boolean"},
+        "contains_absolute_project_paths": {"type": "boolean"}
+      }
+    },
+    "promotion": {
+      "type": ["object", "null"],
+      "description": "靜態場景審閱後，使用者選擇是否升版素材的選用紀錄。",
+      "properties": {
+        "status": {"enum": ["draft", "project_only", "shared_library", "rejected"]},
+        "promoted_from_revision": {"type": ["string", "null"]},
+        "user_selected_scope": {"enum": ["project_only", "shared_library", "draft"]},
+        "parent_asset_id": {"type": ["string", "null"], "description": "持久變體或衍生素材需設定此欄位；不得覆寫母素材。"},
+        "parent_asset_version": {"type": ["string", "null"]},
+        "variant_kind": {"enum": ["none", "project_local_variant", "new_version", "derived_location"]}
+      }
+    },
+    "validation": {
+      "type": ["object", "null"],
+      "description": "選用的獨立測試載入與污染掃描證據。",
+      "properties": {
+        "static_scene_review": {"enum": ["passed", "failed", "unverified"]},
+        "independent_test_load": {"enum": ["passed", "failed", "unverified"]},
+        "contamination_scan": {"enum": ["passed", "failed", "unverified"]},
+        "checked_at": {"type": ["string", "null"], "format": "date-time"},
+        "report_path": {"type": ["string", "null"], "description": "相對於素材庫根目錄的路徑。"},
+        "notes": {"type": "string"}
+      }
+    },
+    "tags": {"type": "array", "items": {"type": "string"}},
+    "warnings": {"type": "array", "items": {"type": "string"}}
+  }
+}

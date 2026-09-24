@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI Film Director"
+  short_description: "劇本、分鏡、素材、Blender 預演與影片提示詞"
+  default_prompt: "使用 $film-director 創作或接續影片。在目前工作區建立或沿用專案，保留已核准的決策，同時展示劇本與鏡頭表，準備素材和 Blender 預演，並分階段交付參考影片與 AI 影片提示詞。"
