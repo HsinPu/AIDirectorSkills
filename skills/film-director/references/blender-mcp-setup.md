@@ -1,4 +1,6 @@
-# MCP 連線與安裝選項
+# Blender MCP 連線與安裝選項
+
+本頁只處理 AI 用戶端與 Blender 執行個體之間的 Blender MCP 連線。選用靜態模型生成服務時，另依[Hyper3D 分支](hyper3d-scene-assets.md)確認 Hyper3D MCP；兩種連線不能互相代替。
 
 ## 何時檢查
 
@@ -27,4 +29,4 @@
 
 截至 2026-09-10 的查核，Blender Lab MCP 由 Blender 附加元件、server 與支援 MCP 的用戶端組成。當時的 v1.0.0 server 需要 Python 3.10+，提供 `blender-mcp` 與 `python -m blmcp` 入口。`.mcpb` 套件僅適用於支援該格式的用戶端。Codex 可用 `codex mcp add <name> -- <command> ...` 或目前有效的 `config.toml` 中 `mcp_servers` 項目註冊本機 server。安裝時應重新核對官方版本、路徑及指令；這些只是範例，不是鎖定的相依版本。
 
-設定後重新發現工具，重做最低限度的唯讀查詢。若仍待重新載入，說明「已設定，待載入及確認連線」。只有收到目標 Blender 的有效回應，才說「已連線」。接著依[Blender／MCP 執行規範](blender-mcp-execution.md)繼續，不新增創作確認或算圖。連線成功只能證明可存取，不能證明模型或動畫品質。
+設定後重新發現工具，重做最低限度的唯讀查詢。若仍待重新載入，說明「已設定，待載入及確認連線」。只有收到目標 Blender 的有效回應，才說「已連線」。接著依[Blender MCP 執行規範](blender-mcp-execution.md)繼續，不新增創作確認或算圖。連線成功只能證明可存取，不能證明模型或動畫品質。

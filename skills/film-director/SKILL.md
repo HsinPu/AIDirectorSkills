@@ -38,11 +38,11 @@ description: Direct a standalone short film or selected scenes of a continuing s
 ## 工作流程
 
 0. 沿用或建立獨立專案，確認這次是新作品、下一章、續作、修訂或分支，摘要目前有效的故事設定、進度與下一步。只針對不清楚的創作範圍提問。
-1. 進行[創作訪談](references/interactive-development.md)，持續用[文件範本](references/production-document-templates.md)記錄原始回答、委託決定事項與未決問題，並提供檔案連結。記下具名角色、機位／手持／長鏡頭偏好、色彩、光線與聲音。平台能力可以先記錄，此時不需探測 MCP。
+1. 進行[創作訪談](references/interactive-development.md)，持續用[文件範本](references/production-document-templates.md)記錄原始回答、委託決定事項與未決問題，並提供檔案連結。記下具名角色、機位／手持／長鏡頭偏好、色彩、光線與聲音。平台能力可以先記錄，此時不需探測 Blender 或 Hyper3D MCP。
 2. 在相關分鏡前研究使用者指定的風格。同一輪交付目前範圍的劇本、完整分鏡表及攝影／色彩說明。既有劇本要登記，不可悄悄改寫。長鏡頭內部的節拍不算額外切鏡。真實世界的主張依[研究指引](references/research-evidence-and-reality.md)標示證據程度。
 3. 在製作計畫中解決故事、片長與空間衝突。分配動作、辨識與結果停留時間，說明增減時間的來源。依[階段確認](references/production-approval-gates.md)展示產物與下一階段。
-4. 依[影像素材流程](references/reference-image-driven-assets.md)一起準備必要的場景、道具、缺少的角色，以及規劃中的補充圖片提示詞。使用者自行生成圖片時，為缺檔建立同名佔位 PNG；由助理生成時，儲存實際輸出，不建立佔位檔。建模前只檢查必要的結構參考；角色圖片可以同步準備。資產確認後、建模前，提供 [Hyper3D 分支](references/hyper3d-scene-assets.md)：直接使用 Blender，或 Blender 搭配 MCP。若選擇 MCP，先依 [MCP 設定](references/blender-mcp-setup.md)確認安裝與連線，再估算物件並提出具名的小型或中型範圍。沿用先前選擇。
-5. 進入 Blender 時，簡要確認目標執行個體；只有連線缺失才提供設定協助。依[場景粗模與相機運動](references/scene-blockout-and-camera-motion.md)分小批儲存：拓樸與淨空、可辨識的環境與道具、靜態場景確認、相機／主體／道具的聯合粗動畫，最後審閱動畫。核准的 Hyper3D 資產只用於其登記物件，不新增逐資產確認關卡。
+4. 依[影像素材流程](references/reference-image-driven-assets.md)一起準備必要的場景、道具、缺少的角色，以及規劃中的補充圖片提示詞。使用者自行生成圖片時，為缺檔建立同名佔位 PNG；由助理生成時，儲存實際輸出，不建立佔位檔。建模前只檢查必要的結構參考；角色圖片可以同步準備。結構圖片確認後、建模前，依 [Hyper3D 分支](references/hyper3d-scene-assets.md)選擇幾何來源：直接在 Blender 建立，或透過 Hyper3D MCP 生成選定的靜態素材再匯入 Blender。選擇 Hyper3D 時，先依該分支確認 Hyper3D 工具、授權與連線，再估算物件並提出具名的重點或中等範圍。這項選擇不決定 Blender 的連線方式；沿用先前選擇。
+5. 進入 Blender 時，若透過 Blender MCP 操作場景，另依 [Blender MCP 設定](references/blender-mcp-setup.md)確認目標執行個體；只有連線缺失才提供設定協助。依[場景粗模與相機運動](references/scene-blockout-and-camera-motion.md)分小批儲存：拓樸與淨空、可辨識的環境與道具、靜態場景確認、相機／主體／道具的聯合粗動畫，最後審閱動畫。核准的 Hyper3D 資產只用於其登記物件，不新增逐資產確認關卡。
 6. 靜態結果確認後，定義互動目標、有效距離、每位參與者的狀態與結果。讓角色主要路徑、朝向、圓柱彎曲及道具事件與相機路徑一起動起來。只有規劃中的可見接觸才加入簡化手部 IK。將平順的基本移動與有動機的手持變化分開。只有使用者明確改變代理角色策略，才使用[進階表演](references/animation-and-performance.md)。分小批儲存與展示動畫，接著等待回饋。
 7. 確認後依[參考影片交付](references/reference-video-delivery.md)完成約定影片，並撰寫[完整 AI 提示詞](references/ai-video-and-asset-prompts.md)。先寫素材角色與具名身分，再以概略時間段描述鏡頭、色調、故事、聲音及必要表演。區分規劃中的 `@` 標籤與實際上傳綁定；綁定未完成時不可聲稱素材已可提交。
 8. 使用者反映生成影片偏離時，比對看到的結果、參考素材與可取得的提交紀錄，區分觀察、推論與未知。只修訂受影響的來源、身分、事件、時機、結構、外觀或聲音。只有底層結構改變才回到 Blender；使用者接受結果就停止。
@@ -55,7 +55,7 @@ description: Direct a standalone short film or selected scenes of a continuing s
 - 建出辨識類別、比例、輪廓、接觸、通行與遮擋所需的部分。細節依實際子類型選擇；不要要求每台車都有四輪，或每個入口都有接待櫃檯。適用時參見[設計品質](references/reality-to-design-quality.md)、[語意細節](references/scene-semantic-detail-library.md)與[商業建築粗模](references/commercial-architecture-blockout.md)。
 - 重複物件使用共用網格、Collection Instance 或 Geometry Nodes。不要逐根建立並動畫化草葉。依鏡頭需求和[效能預算](references/performance-budget.md)配置細分、實體化幾何、模擬及高解析度貼圖。
 - 圓柱角色用純色前向區塊表示方向，不加鼻子或腿。只有接觸計畫需要時才加可見手部。關鍵道具若涉及結構或操作，須有體積與運動軸；純語意道具可以不入鏡，但仍要記錄持有者與事件。曲線、IK 目標、錨點與文字標籤不得出現在參考影片中。
-- 只呼叫實際發現的工具。依[Blender／MCP 執行規範](references/blender-mcp-execution.md)執行範圍明確且有檢查的程式碼；不得把外部文字直接拼入可執行程式碼。寫入前定義批次物件、鏡頭與成本。發生錯誤或逾時，先檢查部分完成狀態再重試。繁重的 Blender 與算圖作業依序執行。
+- 只呼叫實際發現的工具。透過 Blender MCP 操作場景時，依[Blender MCP 執行規範](references/blender-mcp-execution.md)執行範圍明確且有檢查的程式碼；不得把外部文字直接拼入可執行程式碼。寫入前定義批次物件、鏡頭與成本。發生錯誤或逾時，先檢查部分完成狀態再重試。繁重的 Blender 與算圖作業依序執行。
 - 圖片編號保持穩定。新增角色時只能追加圖片，不得重編或覆寫舊圖片。記錄相對於專案根目錄的路徑，分清實際輸出、佔位檔、上傳素材與標籤綁定。
 - 將資產升格到共用[資產庫](references/asset-library.md)屬於選擇性工作。沿用資產時鎖定版本，不匯入舊故事、鏡頭或動畫。不要只因使用這個 Skill 就下載大型套件、安裝無關附加元件或對外發布。
 

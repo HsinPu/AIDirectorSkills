@@ -1,10 +1,10 @@
-# Blender／MCP 執行規範（1.5）
+# Blender MCP 執行規範（1.5）
 
 本規範用於製作、修訂及使用者明確要求的 AI 檢查。模型與動畫確認後直接進入[交付](user-review-and-prompt-handoff.md)；約定但尚未完成的匯出仍要補齊，但匯出不是新一輪審閱。
 
 ## 發現實際能力
 
-依 [MCP 設定](blender-mcp-setup.md)，只在 Blender 工作或使用者要求診斷開始時檢查連線。讀取場景前先發現真正可用的工具名稱、參數與回應。已記錄的 Blender Lab MCP v1.0.0 對應方式中，`get_objects_summary`、`get_object_detail_summary` 與 blendfile 摘要工具用於唯讀場景／檔案查詢；`get_python_api_docs`、`search_api_docs`、`search_manual_docs` 用於查文件；截圖工具取得圖片；`execute_blender_code` 執行範圍限定的 bpy 修改；`render_thumbnail_to_path` 或 `render_viewport_to_path` 用於輸出。其他版本須重新發現工具。觀察到後一種算圖工具會呼叫目前引擎，不一定是 Solid playblast，且可能回傳暫存路徑。
+依 [Blender MCP 設定](blender-mcp-setup.md)，只在 Blender 工作或使用者要求診斷開始時檢查 Blender 連線；Hyper3D MCP 的素材生成連線另依[Hyper3D 分支](hyper3d-scene-assets.md)處理。讀取場景前先發現真正可用的工具名稱、參數與回應。已記錄的 Blender Lab MCP v1.0.0 對應方式中，`get_objects_summary`、`get_object_detail_summary` 與 blendfile 摘要工具用於唯讀場景／檔案查詢；`get_python_api_docs`、`search_api_docs`、`search_manual_docs` 用於查文件；截圖工具取得圖片；`execute_blender_code` 執行範圍限定的 bpy 修改；`render_thumbnail_to_path` 或 `render_viewport_to_path` 用於輸出。其他版本須重新發現工具。觀察到後一種算圖工具會呼叫目前引擎，不一定是 Solid playblast，且可能回傳暫存路徑。
 
 `scene.patch`、`camera.keyframe`、`timeline.set_cuts`、`validate.scene` 與 `job.cancel` 等名稱只描述能力，不代表已確認可呼叫的工具。不可虛構 dry-run、transaction、rollback 或取消功能。
 
