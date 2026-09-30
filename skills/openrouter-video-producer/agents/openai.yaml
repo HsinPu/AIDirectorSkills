@@ -1,0 +1,4 @@
+interface:
+  display_name: "OpenRouter 影片製作"
+  short_description: "透過 OpenRouter 生成影片、接續既有工作並下載成果，銜接導演鏡頭素材包"
+  default_prompt: "使用 $openrouter-video-producer，依我的提示詞與素材選擇合適模型，透過 OpenRouter 生成影片並保存工作紀錄。"

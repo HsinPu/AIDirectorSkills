@@ -1,0 +1,210 @@
+"""OpenRouter 影片工作工具；只使用 Python 標準函式庫，不自動重送提交。"""
+
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+
+BASE = "https://openrouter.ai/api/v1"
+TERMINAL_FAILURES = {"failed", "cancelled", "expired"}
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise ValueError("API 回傳重新導向；停止以避免認證外洩，請查證官方端點。")
+
+
+def request(path, payload=None, authenticated=True):
+    key = os.environ.get("OPENROUTER_API_KEY", "")
+    if authenticated and not key:
+        raise ValueError("請先在本機設定 OPENROUTER_API_KEY 環境變數。")
+    headers = {"Accept": "application/json"}
+    if key:
+        headers["Authorization"] = "Bearer " + key
+    data = None
+    if payload is not None:
+        headers["Content-Type"] = "application/json"
+        data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(BASE + path, data=data, headers=headers)
+    return urllib.request.build_opener(NoRedirect()).open(req, timeout=60)
+
+
+def api_json(path, payload=None, authenticated=True):
+    with request(path, payload, authenticated) as response:
+        return json.load(response)
+
+
+def read_json(path):
+    return json.loads(Path(path).read_text(encoding="utf-8-sig"))
+
+
+def save_json(path, value):
+    target = Path(path)
+    temporary = target.with_name(target.name + ".tmp")
+    with temporary.open("x", encoding="utf-8") as handle:
+        json.dump(value, handle, ensure_ascii=False, indent=2)
+        handle.write("\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, target)
+
+
+def model_list():
+    result = api_json("/videos/models", authenticated=False)
+    if not isinstance(result.get("data"), list):
+        raise ValueError("模型 API 未回傳 data 陣列。")
+    return result
+
+
+def validate(payload, model):
+    if not isinstance(payload.get("prompt"), str) or not payload["prompt"].strip():
+        raise ValueError("需要非空的 prompt。")
+    for field, capability in (
+        ("duration", "supported_durations"),
+        ("resolution", "supported_resolutions"),
+        ("aspect_ratio", "supported_aspect_ratios"),
+        ("size", "supported_sizes"),
+    ):
+        if field in payload and payload[field] not in (model.get(capability) or []):
+            raise ValueError(f"模型未列出支援 {field}={payload[field]!r}。")
+    if "duration" in payload and type(payload["duration"]) is not int:
+        raise ValueError("duration 必須為整數。")
+    if "size" in payload and ("resolution" in payload or "aspect_ratio" in payload):
+        raise ValueError("size 與 resolution/aspect_ratio 請選一種表示方式。")
+    if type(payload.get("generate_audio")) is not bool:
+        raise ValueError("請明確設定 generate_audio 為 true 或 false。")
+    if payload["generate_audio"] and model.get("generate_audio") is not True:
+        raise ValueError("模型未列出音訊生成能力。")
+    if "seed" in payload:
+        if type(payload["seed"]) is not int or model.get("seed") is not True:
+            raise ValueError("seed 需要整數且模型須列出 seed 能力。")
+    for frame in payload.get("frame_images", []):
+        if frame.get("frame_type") not in (model.get("supported_frame_images") or []):
+            raise ValueError("模型未列出此首尾幀類型。")
+        if frame.get("type") != "image_url" or not frame.get("image_url", {}).get("url"):
+            raise ValueError("首尾幀需要 image_url 輸入。")
+    if payload.get("callback_url"):
+        parsed = urllib.parse.urlsplit(payload["callback_url"])
+        if parsed.scheme != "https" or not parsed.netloc:
+            raise ValueError("callback_url 必須為 HTTPS 網址。")
+
+
+def job_id(job):
+    identifier = job.get("id")
+    if not isinstance(identifier, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", identifier):
+        raise ValueError("缺少有效工作 ID；提交結果可能未知，請先查帳號活動，勿直接重送。")
+    return identifier
+
+
+def submit(request_path, job_path):
+    target = Path(job_path)
+    if target.exists():
+        raise ValueError("工作紀錄已存在；請查詢或使用另一次已授權嘗試的目錄。")
+    if not os.environ.get("OPENROUTER_API_KEY"):
+        raise ValueError("請先在本機設定 OPENROUTER_API_KEY 環境變數。")
+    payload = read_json(request_path)
+    model = next((m for m in model_list()["data"] if m["id"] == payload.get("model")), None)
+    if model is None:
+        raise ValueError("模型不在即時影片模型清單內。")
+    validate(payload, model)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    # 先獨占建立意圖紀錄；即使 POST 逾時，也阻止盲目重送。
+    with target.open("x", encoding="utf-8") as handle:
+        json.dump({"status": "submission_unknown", "request_file": str(Path(request_path).resolve())}, handle)
+        handle.flush()
+        os.fsync(handle.fileno())
+    result = api_json("/videos", payload)
+    save_json(target, result)
+    job_id(result)
+    return result
+
+
+def status(job_path):
+    previous = read_json(job_path)
+    identifier = job_id(previous)
+    result = api_json("/videos/" + identifier)
+    if result.get("id") != identifier:
+        raise ValueError("查詢結果的工作 ID 不一致。")
+    save_json(job_path, result)
+    return result
+
+
+def download(job_path, output, index=0):
+    if index < 0:
+        raise ValueError("index 不得為負數。")
+    result = status(job_path)
+    if result.get("status") != "completed":
+        raise ValueError("工作尚未完成：" + str(result.get("status")))
+    target = Path(output)
+    partial = target.with_name(target.name + ".part")
+    if target.exists() or partial.exists():
+        raise ValueError("輸出或 .part 已存在；請先檢查既有成果，勿覆蓋。")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with request(f"/videos/{job_id(result)}/content?index={index}") as response:
+        media_type = response.headers.get("Content-Type", "").split(";")[0].lower()
+        if not media_type.startswith("video/"):
+            raise ValueError("下載回應不是影片 Content-Type。")
+        expected_length = response.headers.get("Content-Length")
+        size = 0
+        with partial.open("xb") as handle:
+            while chunk := response.read(1024 * 1024):
+                handle.write(chunk)
+                size += len(chunk)
+            handle.flush()
+            os.fsync(handle.fileno())
+    if not size or (expected_length is not None and size != int(expected_length)):
+        raise ValueError("影片為空或下載長度不符；保留 .part 供檢查。")
+    # 不覆寫既有檔案，成功建立最終檔案後才移除暫存名稱。
+    os.link(partial, target)
+    partial.unlink()
+    return {"id": result["id"], "video_saved": str(target.resolve()), "bytes": size,
+            "index": index, "usage": result.get("usage"), "media_verified": False}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+    models_parser = commands.add_parser("models")
+    models_parser.add_argument("--out", required=True)
+    submit_parser = commands.add_parser("submit")
+    submit_parser.add_argument("--request", required=True)
+    submit_parser.add_argument("--job", required=True)
+    status_parser = commands.add_parser("status")
+    status_parser.add_argument("--job", required=True)
+    download_parser = commands.add_parser("download")
+    download_parser.add_argument("--job", required=True)
+    download_parser.add_argument("--out", required=True)
+    download_parser.add_argument("--index", type=int, default=0)
+    args = parser.parse_args()
+    try:
+        if args.command == "models":
+            result = model_list()
+            Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+            save_json(args.out, result)
+        elif args.command == "submit":
+            result = submit(args.request, args.job)
+        elif args.command == "status":
+            result = status(args.job)
+        else:
+            result = download(args.job, args.out, args.index)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 1 if result.get("status") in TERMINAL_FAILURES else 0
+    except urllib.error.HTTPError as exc:
+        print(f"HTTP {exc.code}；請查官方錯誤與帳號活動，提交失敗時不要直接重送。", file=sys.stderr)
+        return 1
+    except (ValueError, OSError, KeyError, TypeError) as exc:
+        message = str(exc)
+        key = os.environ.get("OPENROUTER_API_KEY")
+        if key:
+            message = message.replace(key, "[REDACTED]")
+        print(message, file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
