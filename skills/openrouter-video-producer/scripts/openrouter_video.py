@@ -9,6 +9,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 
 BASE = "https://openrouter.ai/api/v1"
 TERMINAL_FAILURES = {"failed", "cancelled", "expired"}
@@ -52,6 +53,51 @@ def save_json(path, value):
         handle.flush()
         os.fsync(handle.fileno())
     os.replace(temporary, target)
+
+
+def report_error(args, exc):
+    """保存錯誤而不重試，也不改寫已存在的工作紀錄。"""
+    details = {"operation": args.command, "requires_user_input": True,
+               "exception_type": type(exc).__name__, "message": str(exc)}
+    if isinstance(exc, urllib.error.HTTPError):
+        details["http_status"] = exc.code
+        details["request_id"] = (exc.headers or {}).get("x-request-id")
+        try:
+            body = exc.read().decode("utf-8", errors="replace")
+            details["response_body"] = body
+            try:
+                details["response_json"] = json.loads(body)
+            except ValueError:
+                pass
+        except OSError as read_error:
+            details["body_read_error"] = str(read_error)
+    job_path = getattr(args, "job", None)
+    if job_path:
+        details["job_file"] = str(Path(job_path).resolve())
+        try:
+            job = read_json(job_path)
+            details["job_id"] = job.get("id")
+            details["job_status"] = job.get("status")
+        except (OSError, ValueError, AttributeError):
+            pass
+    # 只保存错误與必要工作資訊，不複製請求中的素材或認證標頭。
+    encoded = json.dumps(details, ensure_ascii=False)
+    key = os.environ.get("OPENROUTER_API_KEY")
+    if key:
+        encoded = encoded.replace(json.dumps(key, ensure_ascii=False)[1:-1], "[REDACTED]")
+    details = json.loads(encoded)
+    anchor = Path(job_path or args.out)
+    error_path = anchor.with_name(anchor.stem + ".error-" + uuid.uuid4().hex + ".json")
+    try:
+        error_path.parent.mkdir(parents=True, exist_ok=True)
+        save_json(error_path, details)
+        details["error_file"] = str(error_path.resolve())
+    except OSError as save_error:
+        message = str(save_error)
+        details["error_save_failure"] = message.replace(key, "[REDACTED]") if key else message
+    details["next_action"] = "停止操作，說明錯誤並詢問使用者如何處理；不要自行修改或重試。"
+    print(json.dumps(details, ensure_ascii=False, indent=2), file=sys.stderr)
+    return 1
 
 
 def model_list():
@@ -192,18 +238,14 @@ def main():
             result = status(args.job)
         else:
             result = download(args.job, args.out, args.index)
+        if result.get("status") in TERMINAL_FAILURES:
+            return report_error(args, RuntimeError(json.dumps(result, ensure_ascii=False)))
         print(json.dumps(result, ensure_ascii=False, indent=2))
-        return 1 if result.get("status") in TERMINAL_FAILURES else 0
+        return 0
     except urllib.error.HTTPError as exc:
-        print(f"HTTP {exc.code}；請查官方錯誤與帳號活動，提交失敗時不要直接重送。", file=sys.stderr)
-        return 1
+        return report_error(args, exc)
     except (ValueError, OSError, KeyError, TypeError) as exc:
-        message = str(exc)
-        key = os.environ.get("OPENROUTER_API_KEY")
-        if key:
-            message = message.replace(key, "[REDACTED]")
-        print(message, file=sys.stderr)
-        return 1
+        return report_error(args, exc)
 
 
 if __name__ == "__main__":
