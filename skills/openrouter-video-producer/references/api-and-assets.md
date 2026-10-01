@@ -57,6 +57,8 @@
 
 使用 Seedance 的混合素材時，另依 [Seedance 素材綁定與提示詞](seedance-reference-prompts.md) 建立素材、API 欄位與提示詞指代的對照。以實際提交規則更新範例，不將其他平台的 `@` 標籤直接視為已完成綁定。
 
+使用 MiniMax H3／H3 Max 時，另依 [H3 素材引用與提示詞](minimax-h3-reference-prompts.md) 區分首尾幀與一般參考，核對所選供應商的指代與映射。fal 的 `reference_image_urls`、`reference_video_urls`、`reference_audio_urls` 是 fal 欄位，不直接填入 OpenRouter 請求；提示詞標籤也不能代替素材輸入。
+
 ## 供應商選項與 webhook
 
 進階參數位於 `provider.options.<provider-slug>.parameters`。先查 `allowed_passthrough_parameters`，再查該供應商官方文件的值域及組合限制。一般情況省略，不複製另一模型的負面提示詞參數。

@@ -37,6 +37,8 @@ description: 透過 OpenRouter API 生成影片，支援文字、首尾幀與參
 
 使用 Seedance，尤其圖片、影片與聲音混合參考時，先讀 [Seedance 素材綁定與提示詞](references/seedance-reference-prompts.md)。其中 Seedance 2.5 的範例是參考，不是固定 API 規格；當下 API／供應商規則不同時，依查證結果重寫素材綁定與提交規則，保留使用者的創作意圖。
 
+使用 MiniMax H3／H3 Max 時，先讀 [H3 素材引用與提示詞](references/minimax-h3-reference-prompts.md)，依文字／首尾幀或多素材參考選擇格式。分清 MiniMax 原生標籤、fal 素材順序與 OpenRouter 實際映射；上游功能不能直接視為 OpenRouter 已支援。
+
 - 先讀使用者指定的 `prompt.md`、`shot-manifest.json` 或生成單元紀錄。多鏡單元仍是一次提交；逐鏡資料夾不自動各付費生成。
 - 保留已確認的故事、角色、臉部身分、運鏡、聲音及接點要求。沒有角色的影片明寫臉部身分要求不適用；沒有參考圖時使用文字設定，不虛構身分綁定。
 - 原平台的 `@imageN`／`@videoN` 不等於 OpenRouter API 綁定。建立檔案到 API 輸入欄位的對照，將提示詞改為實際可解析的來源描述；不把 Blender 結構預演誤作最終美術。
