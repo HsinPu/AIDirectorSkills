@@ -8,6 +8,8 @@ MiniMax 官方將 H3 分成文字生成 T2VA、首幀 I2VA、首尾幀 FL2VA、�
 
 H3 Max 的能力須按介面判斷：fal 的 reference-to-video 已列出圖片、影片與音訊參考，另有專門的 3d-to-video 介面供 Blender 預演使用。不能由此推定 OpenRouter 路由已提供所有能力，也不能將 H3 Max 一概記為只支援圖片。[fal 參考生成](https://fal.ai/models/minimax/h3-max/reference-to-video/api)、[fal 預演轉影片](https://fal.ai/models/minimax/h3-max/3d-to-video)
 
+執行時查 OpenRouter 的 `input_modalities`、`generate_audio` 與供應商資料，按所需素材與聲音能力選模；不按 Max 名稱推定功能，也不將音訊輸入視為音色複製保證。[影片模型清單](https://openrouter.ai/api/v1/videos/models)、[H3 供應商資料](https://openrouter.ai/api/v1/models/minimax/hailuo-3/endpoints)、[H3 Max 供應商資料](https://openrouter.ai/api/v1/models/minimax/hailuo-3-max/endpoints)。
+
 提交前一起建立素材對照表、`request.json` 與提示詞。對照表記錄本機檔案、素材類型、API 欄位、各類素材的提交順序、模型指代、採用／排除資訊及查證狀態。
 
 - OpenRouter 的首尾幀使用 `frame_images`，一般內容／風格參考使用 `input_references`；兩者同時提供時，官方文件指出首尾幀模式優先。不把人物設定圖當首幀，也不承諾混合模式下所有素材仍生效。
@@ -17,6 +19,20 @@ H3 Max 的能力須按介面判斷：fal 的 reference-to-video 已列出圖片�
 - 必要映射無法確認或發生錯誤時，依 Skill 的錯誤規則先說明並詢問使用者，不自行省略素材、換平台或付費試錯。
 
 依據：[OpenRouter 影片指南](https://openrouter.ai/docs/guides/overview/multimodal/video-generation)、[提交 API](https://openrouter.ai/docs/api/api-reference/video-generation/submit-a-video-generation-request)。
+
+## H3 多素材參考：數量與時長上限
+
+MiniMax 官方 H3 Ref2VA 規則如下；這是上游模式的限制，不代表 OpenRouter 各供應商已完整支援。提交前核對當前路由，若有更嚴格限制，以該介面為準。
+
+| 素材 | 最多數量 | 每個片段時長 | 同類片段總時長 |
+|---|---|---|---|
+| 圖片 | 9 張 | 不適用 | 不適用 |
+| 影片 | 3 個 | 2–15 秒 | 最多 15 秒 |
+| 音訊 | 3 個 | 2–15 秒 | 最多 15 秒 |
+
+三類合計最多 **12 個素材**，不能同時用滿 9＋3＋3。音訊參考須搭配至少一張圖片或一個影片，不能只有音訊。首尾幀模式各最多一張首幀、一張尾幀，不能與多素材參考模式混用。
+
+來源：[MiniMax 官方 H3 輸入限制](https://github.com/MiniMax-AI/cli/blob/main/skill/h3-video/references/h3-video.md)、[H3 官方說明](https://github.com/MiniMax-AI/MiniMax-H3/blob/main/README.md)。不要將 CLI 自身的上傳大小限制直接視為 OpenRouter 的限制；規格不明時查證或詢問，不以付費試錯推測上限。
 
 ## 文字／首尾幀：三段格式
 
@@ -82,4 +98,8 @@ Keep her facial identity consistent. Quiet room ambience, no background music.
 
 人物的臉部身分要求寫進相應定義、保留分析與畫面描述；不改壞官方段落順序。無人物時明說不新增人物；缺人物圖時依文字設定，不虛構人臉參考。
 
-本文件已核對官方寫作指南及介面文件，尚無 H3／H3 Max 經 OpenRouter 混合素材生成的實測證據。專案保存查證日期、供應商、實際輸入對照、工作 ID 與未知事項；分清提交成功、素材生效及成片品質三種證據。
+## 提交與驗證
+
+素材 URL 須符合當前 API schema，遠端影片須可直接讀取媒體內容，不能將分享預覽頁當成影片檔。核對實際提交來源與已確認素材一致；提示詞標籤須對應素材類型及順序。
+
+在影片專案保存請求、工作 ID、實際費用、媒體資訊與檢視結果，分清提交成功、素材採用及成片品質。個案工作紀錄與使用者回饋留在專案，不寫入公用 Skill。
