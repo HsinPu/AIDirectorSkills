@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**從故事、分鏡與 Blender 預演，到透過 OpenRouter 生成影片的 AI 導演 Skills。**
+**從故事、漫畫式分鏡圖或 Blender 預演，到透過 OpenRouter 生成影片的 AI 導演 Skills。**
 
 以臺灣繁體中文記錄創作決策、整理角色與場景素材，讓 AI 助理能接續同一個影片專案。適合製作獨立短片、連續故事中的指定場景，以及需要參考素材的 AI 影片。
 
@@ -10,7 +10,7 @@
 
 | Skill | 用途 | 主要交付 |
 |---|---|---|
-| [film-director](skills/film-director/SKILL.md) | 故事開發、劇本、分鏡、資產與 Blender 結構預演 | 劇本、鏡頭表、角色／場景素材、參考影片、生成提示詞 |
+| [film-director](skills/film-director/SKILL.md) | 故事開發、劇本、分鏡、資產，以及圖片或 Blender 預演參考 | 劇本、鏡頭表、角色／場景素材、分鏡參考圖片或影片、生成提示詞 |
 | [openrouter-video-producer](skills/openrouter-video-producer/SKILL.md) | 透過 OpenRouter API 生成影片，查詢、恢復與下載工作 | 提交內容、工作紀錄、生成影片、API 回報費用 |
 
 兩個 Skill 可各自使用，也可接續：先由導演 Skill 完成鏡頭設計與素材包，再交給 OpenRouter Skill 生成影片。
@@ -53,6 +53,8 @@ OpenRouter Skill 會查模型能力，整理素材與提示詞對照，保存 `r
 
 - **創作決策可接續**：記錄故事範圍、角色、攝影、色彩、聲音與使用者回饋。
 - **劇本與鏡頭一起檢視**：讓敘事、表演、分鏡與運鏡意圖一起審閱。
+- **三種參考路線**：A 漫畫式分鏡圖、B Blender 預演、C Hyper3D 素材＋Blender 預演；劇本與鏡頭表確認後選擇，已有答案就沿用。
+- **漫畫式分鏡圖片**：以時間、景別及箭頭審閱構圖，確認後交付乾淨單格；長鏡頭關鍵格與實際切鏡分開記錄，圖片路線無須 Blender。
 - **Blender 結構預演**：以簡化角色與場景表達空間、走位、接觸與攝影機路線。
 - **逐鏡素材包**：每鏡保留所需素材副本；多鏡生成另外提供可獨立提交的生成單元。
 - **混合參考素材**：為 Seedance 等支援模型整理圖片、影片與聲音的用途及提示詞指代，依當下供應商規則更新。
@@ -64,6 +66,7 @@ OpenRouter Skill 會查模型能力，整理素材與提示詞對照，保存 `r
 | 工作 | 需求 |
 |---|---|
 | 訪談、劇本、分鏡與提示詞 | 支援 Skills 的 AI 用戶端 |
+| 漫畫式分鏡圖 | 可用的影像生成／編輯工具，或使用者提供圖片；實際影片模型須支援所選圖片參考方式 |
 | Blender 預演 | Blender；透過 MCP 操作時需可用的 Blender MCP 連線 |
 | OpenRouter 輔助程式 | Python 3.8+，僅使用標準函式庫；本專案於 Python 3.12 驗證 |
 | OpenRouter 影片生成 | 網路、`OPENROUTER_API_KEY` 與足夠帳號額度 |

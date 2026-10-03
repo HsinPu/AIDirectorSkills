@@ -6,6 +6,8 @@
 
 ## 狀態與標記
 
+先依[參考路線](storyboard-image-workflow.md)登記 `reference_method` 與適用範圍。A 的 `stage_reviews` 記錄整批 `storyboard_images`，索引審閱頁、乾淨單格與格子時間；下文 Blender 專屬工程及靜態／動畫項目在 A 記為 `not_applicable`。B、C 沿用靜態與動畫紀錄；舊紀錄的選項意義維持不變，不要求既有專案重做。
+
 project-state.json 是機器可讀的單一現況入口；PROJECT.md 提供人員摘要。接續工作時，先讀狀態、目前場景、相關已確認設定、前後連續性及未決問題，再提問或製作。追蹤 project_kind、current work_scope、單集進度、last_checkpoint 及 resume_context。區分已寫但尚未製作的章節，與尚未撰寫的故事。creative_documents 索引訪談、具名角色、攝影／色彩、劇本及完整分鏡；stage_reviews 分別記錄靜態與動畫的展示及意見。不要捏造缺失的舊訪談。
 
 專案狀態可包含 project_id、root、title、approved_revision、working_revision、parent_revision、active_scene_id、development_stage、approval_status、帶有 path／scope／status 的 source_of_truth 紀錄、accepted_decisions、delegated_choices、open_questions、帶相依與狀態的 artifacts，以及 drift 項目。若出現舊版 revision_id，必須等於 working_revision。舊版純字串的 source_of_truth 清單可依根目錄讀取，但重寫時應加入路徑、範圍與事實狀態。已確認或明確委託的選擇，可在指定範圍內成為授權來源；提案與推測不可冒充既定設定。
@@ -35,4 +37,4 @@ revisions/r####/handoff.md 的交接內容應指出專案 ID、相對於根目�
 
 ## 分別記錄交付狀態
 
-prompt_export 是流程階段，不代表影片、美術素材、上傳或生成影片已存在。以真實檔案與待辦工作追蹤 text_status、reference_video_status、appearance_assets_status、upload_binding_status 和 generation_status。附件尚未齊全時可先有條件草稿，但約定要交付的影片或角色影像若仍未完成，不能宣稱整體交接完成。匯出相同的已核准動畫，不變更創作修訂，也不觸發審閱。舊版 prompt_ready 影像狀態視為 planned；registered 表示已編目，核准與否由 review_status 記錄。
+prompt_export 是流程階段，不代表圖片、影片、美術素材、上傳或生成影片已存在。以真實檔案與待辦工作追蹤 text_status、reference_image_status、reference_video_status、appearance_assets_status、upload_binding_status 和 generation_status；未採用的參考形式記為 not_applicable。附件尚未齊全時可先有條件草稿，但約定要交付的分鏡圖片、影片或角色影像若仍未完成，不能宣稱整體交接完成。A 的分鏡圖確認與 B、C 的模型／動畫確認都可使採納修訂進入 prompt_export。同版清除註解或匯出已核准動畫，不變更創作修訂，也不觸發審閱。舊版 prompt_ready 影像狀態視為 planned；registered 表示已編目，核准與否由 review_status 記錄。

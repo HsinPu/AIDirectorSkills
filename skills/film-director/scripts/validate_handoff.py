@@ -109,6 +109,44 @@ def reference(audit, value, known, where):
         audit.error("UNKNOWN_REFERENCE", where=where, reference=value)
 
 
+REFERENCE_METHODS = {"storyboard_images", "blender_previs", "hyper3d_blender_previs"}
+
+
+def check_storyboard_panels(a, unit, refs, unit_refs, required=False):
+    identifier = unit["unit_id"]
+    panels = a.index(unit.get("storyboard_panels", []), identifier + ".storyboard_panels", key="panel_id")
+    if required and not panels:
+        a.error("NO_STORYBOARD_PANELS", unit=identifier)
+    previous_time, previous_shot = None, None
+    for panel_id, panel in panels.items():
+        ref_id = panel.get("reference_id")
+        reference(a, ref_id, refs, panel_id + ".reference_id")
+        if ref_id not in unit_refs:
+            a.error("PANEL_NOT_IN_UNIT_REFERENCES", panel=panel_id)
+        source = refs.get(ref_id, {}) if isinstance(ref_id, str) else {}
+        if source and (source.get("kind") != "image" or source.get("role") != "storyboard_frame"):
+            a.error("PANEL_REFERENCE_NOT_STORYBOARD_FRAME", panel=panel_id)
+        timestamp, duration = panel.get("time_seconds"), unit.get("duration_seconds")
+        if not number(timestamp) or timestamp < 0 or (number(duration) and timestamp > duration):
+            a.error("PANEL_TIME_OUT_OF_RANGE", panel=panel_id)
+        else:
+            if previous_time is not None and timestamp < previous_time:
+                a.error("UNORDERED_STORYBOARD_PANELS", panel=panel_id)
+            previous_time = timestamp
+        shot_id, cut = panel.get("shot_id"), panel.get("cut_before")
+        if not isinstance(shot_id, str) or not shot_id.strip():
+            a.error("INVALID_PANEL_SHOT_ID", panel=panel_id)
+        elif not isinstance(cut, bool):
+            a.error("INVALID_PANEL_CUT_FLAG", panel=panel_id)
+        else:
+            if previous_shot is not None:
+                if shot_id == previous_shot and cut:
+                    a.error("STORYBOARD_CUT_WITHIN_SHOT", panel=panel_id)
+                elif shot_id != previous_shot and not cut:
+                    a.error("STORYBOARD_SHOT_CHANGE_WITHOUT_CUT", panel=panel_id)
+            previous_shot = shot_id
+
+
 def check_scene(a, data, hardware=None):
     d = a.object(data, "scene-spec")
     scene = a.object(d.get("scene"), "scene")
@@ -217,6 +255,9 @@ def check_scene(a, data, hardware=None):
 
 def check_package(a, data):
     d = a.object(data, "package")
+    default_method = d.get("reference_method")
+    if default_method is not None and (not isinstance(default_method, str) or default_method not in REFERENCE_METHODS):
+        a.error("INVALID_REFERENCE_METHOD", where="package")
     refs = a.index(d.get("references"), "references")
     units = a.index(d.get("generation_units"), "generation_units", key="unit_id")
     labels = {}
@@ -257,6 +298,9 @@ def check_package(a, data):
     if not units:
         a.error("NO_GENERATION_UNITS")
     for identifier, unit in units.items():
+        method = unit.get("reference_method", default_method)
+        if method is not None and (not isinstance(method, str) or method not in REFERENCE_METHODS):
+            a.error("INVALID_REFERENCE_METHOD", unit=identifier)
         duration = unit.get("duration_seconds")
         if not number(duration) or duration <= 0:
             a.error("INVALID_UNIT_DURATION", unit=identifier)
@@ -267,6 +311,10 @@ def check_package(a, data):
         unit_refs = a.array(unit.get("reference_ids"), identifier + ".reference_ids")
         for ref_id in unit_refs:
             reference(a, ref_id, refs, identifier)
+            if isinstance(ref_id, str) and refs.get(ref_id, {}).get("role") == "storyboard_review":
+                a.error("STORYBOARD_REVIEW_AS_GENERATION_REFERENCE", unit=identifier, reference=ref_id)
+        if method == "storyboard_images" or "storyboard_panels" in unit:
+            check_storyboard_panels(a, unit, refs, unit_refs, required=method == "storyboard_images")
         source_id = unit.get("source_reference_id")
         if source_id is not None or "source_range_seconds" in unit:
             reference(a, source_id, refs, identifier + ".source_reference_id")

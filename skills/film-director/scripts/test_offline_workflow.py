@@ -252,6 +252,66 @@ class HandoffTests(unittest.TestCase):
         handoff.check_package(self.audit, self.package)
         self.assertTrue({"SOURCE_RANGE_OUT_OF_BOUNDS", "UNIT_SOURCE_DURATION_MISMATCH"} <= self.codes())
 
+    def storyboard_package(self):
+        return {
+            "reference_method": "storyboard_images", "required_character_ids": ["CHR_A"],
+            "references": [self.package["references"][1],
+                {"id": "SB1", "kind": "image", "role": "storyboard_frame", "path": "person.png",
+                 "available": True, "binding_status": "bound", "label": "@image2"},
+                {"id": "SB2", "kind": "image", "role": "storyboard_frame", "path": "person.png",
+                 "available": True, "binding_status": "bound", "label": "@image3"}],
+            "generation_units": [{"unit_id": "U1", "duration_seconds": 10, "time_basis": "local",
+                "reference_ids": ["I1", "SB1", "SB2"], "prompt": "Two keyframes of one continuous shot",
+                "storyboard_panels": [
+                    {"panel_id": "PN1", "shot_id": "SH1", "reference_id": "SB1", "time_seconds": 0, "cut_before": False},
+                    {"panel_id": "PN2", "shot_id": "SH1", "reference_id": "SB2", "time_seconds": 7, "cut_before": False}]}]}
+
+    def test_image_route_needs_no_blender_video_or_scene(self):
+        handoff.check_package(self.audit, self.storyboard_package())
+        self.assertEqual(self.audit.errors + self.audit.warnings, [])
+        self.assertEqual(self.audit.result()["status"], "declared_checks_passed")
+
+    def test_storyboard_cut_changes_shot_id(self):
+        data = self.storyboard_package()
+        data["generation_units"][0]["storyboard_panels"][1].update(shot_id="SH2", cut_before=True)
+        handoff.check_package(self.audit, data)
+        self.assertEqual(self.audit.errors + self.audit.warnings, [])
+
+    def test_storyboard_wrong_source_and_out_of_unit_time_rejected(self):
+        data = self.storyboard_package()
+        data["generation_units"][0]["storyboard_panels"][1].update(reference_id="I1", time_seconds=11)
+        handoff.check_package(self.audit, data)
+        self.assertTrue({"PANEL_REFERENCE_NOT_STORYBOARD_FRAME", "PANEL_TIME_OUT_OF_RANGE"} <= self.codes())
+
+    def test_review_page_is_not_generation_reference(self):
+        data = self.storyboard_package()
+        data["references"][1]["role"] = "storyboard_review"
+        handoff.check_package(self.audit, data)
+        self.assertIn("STORYBOARD_REVIEW_AS_GENERATION_REFERENCE", self.codes())
+
+    def test_storyboard_declared_route_needs_panels(self):
+        data = self.storyboard_package()
+        del data["generation_units"][0]["storyboard_panels"]
+        handoff.check_package(self.audit, data)
+        self.assertIn("NO_STORYBOARD_PANELS", self.codes())
+
+    def test_unit_route_override_preserves_mixed_package(self):
+        data = self.storyboard_package()
+        data["reference_method"] = "blender_previs"
+        data["generation_units"][0]["reference_method"] = "storyboard_images"
+        data["references"].insert(0, self.package["references"][0])
+        data["generation_units"].append({**self.package["generation_units"][0], "unit_id": "U2"})
+        handoff.check_package(self.audit, data)
+        self.assertEqual(self.audit.errors + self.audit.warnings, [])
+
+    def test_storyboard_cut_and_order_contradictions_rejected(self):
+        data = self.storyboard_package()
+        panels = data["generation_units"][0]["storyboard_panels"]
+        panels[0]["time_seconds"] = 5
+        panels[1].update(time_seconds=3, cut_before=True)
+        handoff.check_package(self.audit, data)
+        self.assertTrue({"UNORDERED_STORYBOARD_PANELS", "STORYBOARD_CUT_WITHIN_SHOT"} <= self.codes())
+
     def test_absolute_and_traversal_paths_are_rejected(self):
         for value in ("../outside.png", "C:/Users/person.png", "/tmp/a", "\\\\server\\image.png"):
             self.audit.path(value, "fixture")

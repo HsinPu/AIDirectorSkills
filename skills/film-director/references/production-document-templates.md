@@ -35,7 +35,7 @@ canon/screen-language.md 可採用：
 | 色彩 | 主副色、冷暖、飽和度、對比、膚色與陰影 | 場景變化 | |
 | 光線與質感 | 主光來源／方向、硬度、材質、顆粒／清晰度、景深 | 與中性素材照明的差異 | |
 | 聲音 | 對白、環境音、音效、音樂、旁白、字幕 | 靜默與口音 | |
-| Blender 與最終影片 | 大致攝影／代理動作與最終外觀／表演 | 若有選用，微幅手持可留到最終影片 | |
+| 參考與最終影片 | 分鏡構圖或 Blender 大致攝影／代理動作，與最終外觀／表演 | 漫畫參考畫風與最終影片媒介分開 | |
 
 這些是可執行的視覺指引，不需要指定攝影機品牌，也不要求中性預演算出最終光線。
 
@@ -43,7 +43,7 @@ canon/screen-language.md 可採用：
 
 story/<scene>_script.md 記錄場景／時間、具名人物、可見行為、必要對白與聲音。可附節拍表，也可合併：
 
-| 節拍／時間 | 目標與觸發 | 動作、反應、結果 | 觀眾資訊與情緒 | 聲音／停頓 | Blender 表現 | 最終影片細節 |
+| 節拍／時間 | 目標與觸發 | 動作、反應、結果 | 觀眾資訊與情緒 | 聲音／停頓 | 分鏡圖／預演表現 | 最終影片細節 |
 |---|---|---|---|---|---|---|
 
 未錄製的對白，依預期講法估算並標註；有實際朗讀或音檔時用實際時長。允許對白、呼吸、動作與攝影機重疊。字幕放得下，不代表對白真的說得完。
@@ -57,6 +57,13 @@ story/<scene>_script.md 記錄場景／時間、具名人物、可見行為、�
 
 ## 5. 展示與階段回饋
 
+劇本與分鏡確認後，記錄 `reference_method`、原始 A／B／C 選項、回答證據及適用鏡頭／單元。A 為 `storyboard_images`、B 為 `blender_previs`、C 為 `hyper3d_blender_previs`。A 在 `storyboard_images` 階段整批審閱，B、C 維持靜態模型與動畫各自的審閱；不適用項目記為 `not_applicable`，不虛構確認或要求免除。
+
+圖片路線可使用下列對照表，實際產物與詳細規則見[分鏡圖流程](storyboard-image-workflow.md)。同一長鏡頭共用鏡頭 ID，只有實際切點才標示切鏡。
+
+| 格子 ID／鏡頭 ID／單元 ID | 單元內時間 | 景別／機位 | 動作與運鏡 | 是否在本格前切鏡 | 審閱頁／乾淨單格 | 來源與修訂 |
+|---|---|---|---|---|---|---|
+
 使用 stage_reviews 或等效紀錄，保存階段、artifact_ref、修訂、展示方式、presented_at、狀態、使用者原話、核准範圍及下一階段。劇本與分鏡可在同一則回覆展示，但核准範圍需分開。靜態模型與動畫也各有獨立紀錄。整批審閱可追加 review_batch_id、artifact_refs 與本批鏡頭／單元範圍；各產物可引用同一次展示與使用者回覆，但各自保留版本及核准狀態。一次確認涵蓋已展示且列明的全批項目，局部修訂只重新確認受影響範圍，不逐項重問。狀態檔寫「已展示」，須有回覆或實際觀看證據支持。
 
 更新 PROJECT.md 的目前階段、連結及真實待辦事項。提示詞階段讀取已核准素材，局部補正遺漏，不重開整份訪談。維護技能不會自動遷移使用者專案。
@@ -65,10 +72,10 @@ story/<scene>_script.md 記錄場景／時間、具名人物、可見行為、�
 
 story/sequence-map.md 可採用：
 
-| 單集／場景 ID 與順序 | 情節與來源文字 | 寫作狀態 | 預演狀態 | 提示詞狀態 | AI 影片狀態 | 目前範圍／下一步 |
+| 單集／場景 ID 與順序 | 情節與來源文字 | 寫作狀態 | 參考路線／狀態 | 提示詞狀態 | AI 影片狀態 | 目前範圍／下一步 |
 |---|---|---|---|---|---|---|
 
-寫作可為 missing、outline、source_supplied、draft、approved；預演可為 not_started、static_in_progress、static_approved、animation_in_progress、animation_approved、reference_exported；提示詞可為 pending、partial、delivered；影片可為 not_started、generated、user_approved。各狀態互不推定。
+寫作可為 missing、outline、source_supplied、draft、approved；A 的 `reference_image_status` 可為 not_started、working、awaiting_user、approved、delivered，預演與參考影片記為 not_applicable；B、C 預演可為 not_started、static_in_progress、static_approved、animation_in_progress、animation_approved、reference_exported；提示詞可為 pending、partial、delivered；影片可為 not_started、generated、user_approved。各狀態互不推定。
 
 選用的狀態欄位可包含 project_kind、帶 action／scene_ids／source_script_ref／source_range／rewrite_scope 的 work_scope、creative_documents 參照、列出已完成範圍與來源的 last_checkpoint，以及列出下一個已寫或未寫場景、next_action、action_status、read_first 的 resume_context。已有已核准劇本，不表示要重寫。不要只為填範本而遷移舊專案。
 
