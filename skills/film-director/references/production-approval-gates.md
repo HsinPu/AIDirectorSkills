@@ -21,8 +21,16 @@
 
 「你決定」通常只委託目前的創作選擇，不免除後續產物審閱。只有明確要求不經靜態及／或動畫確認就繼續，才算免除相應檢查點。記錄使用者原話與範圍；已獲免除就不要重問。後續修改只使受影響範圍的確認失效。
 
+## 整批製作與審閱
+
+預設以目前已確認的整支作品、單集或選定段落為批次範圍，不以每個分鏡或生成單元增加確認次數。劇本與完整分鏡確認後，同階段內自主完成已授權工作，在圖片素材、靜態場景、動畫預演各階段結束時一次展示本批全部成果。靜態與動畫仍是兩個分開的審閱階段；製作期間的技術分批、儲存或工具限制不構成使用者審閱點。只有使用者要求逐項審閱，或有影響成果且無法自行解決的缺失／衝突時，才針對必要項目提問；未受影響的同階段工作繼續。
+
+素材按相依順序製作，同批母圖的草稿使用依[影像素材流程](reference-image-driven-assets.md)辦理。一次展示全部靜態場景與各場景代表構圖，取得確認後再製作本批全部動畫。動畫審閱同時提供各段預演、鏡頭／單元索引；多段作品另提供全片串接預覽作為整體節奏與接點的審閱入口，各段工程與參考影片仍須保留。此預覽屬於原本的動畫審閱，不是確認後新增的全片複核。
+
+使用者對已列明並展示的整批成果表示「可以」、「繼續」或「這批都可以」時，可一次確認該批所有項目；將同一回覆證據對應到各項版本與範圍，不逐項再次詢問。只接受部分項目時分別記錄；修訂後合併展示受影響項目，未變且已確認的項目沿用。沒有展示的項目不能藉整批確認標成已確認。
+
 ## 證據紀錄
 
-在 `project-state.json` 的 `stage_reviews` 或同等紀錄中保存：`stage`、`artifact_ref`、`revision`、`presentation`、`presented_at`、`status`、`user_evidence`、`approved_scope` 及 `next_stage`。`status` 可為 `not_presented`、`awaiting_user`、`approved`、`revise` 或 `explicitly_waived`。
+在 `project-state.json` 的 `stage_reviews` 或同等紀錄中保存：`stage`、`artifact_ref`、`revision`、`presentation`、`presented_at`、`status`、`user_evidence`、`approved_scope` 及 `next_stage`。整批審閱可用 `review_batch_id` 與 `artifact_refs` 列出全部產物，或讓各產物的獨立紀錄引用同一批次與使用者回覆；每項保留自己的版本、展示證據及核准範圍。`status` 可為 `not_presented`、`awaiting_user`、`approved`、`revise` 或 `explicitly_waived`。
 
 記錄產物實際如何展示，保留使用者原話與脈絡。可沿用目前工作階段或紀錄中可靠的確認，不重問；不可為舊專案虛構確認。人工確認不代表 FPS、碰撞或生成已經過技術測試。創作決策的委託與產物確認是不同事實。
