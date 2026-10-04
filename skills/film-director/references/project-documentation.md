@@ -69,7 +69,7 @@ A 的分鏡圖片，或 B、C 的模型與動畫核准後，將該修訂升為�
 
 ## 最低交付紀錄
 
-參考製作路線依[分鏡圖與路線指引](storyboard-image-workflow.md)登記 `reference_method`、選擇證據及適用範圍。A 索引審閱頁、乾淨單格及格子／鏡頭／單元時間對照，追蹤 `reference_image_status`；Blender 工程、硬體預算、SceneSpec 及靜態／動畫審閱不因套用本範本而自動成為必交項。沒有約定 Blender 工作時，專屬狀態記為 `not_applicable`。B、C 沿用下述靜態與動畫紀錄。依可靠舊紀錄辨識路線，不追溯要求舊專案補建資料。
+參考製作路線依[分鏡圖與路線指引](storyboard-image-workflow.md)登記 `reference_method`、選擇證據及適用範圍。A 索引每鏡六格審閱頁、實際提示詞、乾淨單格及逐格時間／運鏡對照，分別記錄鏡頭數、頁數、每頁格數與總格數；自訂版型保留使用者要求。全片、鏡內及生成單元內時間分開記錄，追蹤 `reference_image_status`；Blender 工程、硬體預算、SceneSpec 及靜態／動畫審閱不因套用本範本而自動成為必交項。沒有約定 Blender 工作時，專屬狀態記為 `not_applicable`。B、C 沿用下述靜態與動畫紀錄。依可靠舊紀錄辨識路線，不追溯要求舊專案補建資料。
 
 檔案如何分拆可自行決定，但實際訪談、視覺選擇、分鏡展示及各階段意見都必須留存。完整新影片專案應保留原始回答及採納值、具名角色紀錄、攝影／色彩方向、劇本、完整鏡頭表，以及所選路線的分鏡圖或靜態／動畫回饋。包含[參考素材交付](reference-video-delivery.md)定義的 generation_profile 與 delivery_contract。
 
