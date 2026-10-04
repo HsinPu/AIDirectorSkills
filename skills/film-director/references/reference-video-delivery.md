@@ -26,7 +26,9 @@ B、C 每個單元保存可獨立開啟與編輯的 Blender 動畫工程，並�
 
 ## 逐鏡素材包與生成單元
 
-新製作依[起始畫面資產](start-frame-assets.md)將各鏡成片起始圖原檔登記為 `start_frame_visual_reference`，副本放入自身 `media/`。每個獨立生成單元指定 `start_frame_reference_id`，與完整運鏡參考及人物原照共同交付；一般參考與原生首幀的欄位依實際模式決定，不能因新增起始圖省略運鏡頁或人物來源。新套件宣告 `asset_contract: "start_frame_v1"`，各鏡／單元保存 `reference_ids` 及已查證的 `reference_limits`。
+新製作依[起始畫面資產](start-frame-assets.md)將各鏡成片起始圖原檔登記為 `start_frame_visual_reference`，副本放入自身 `media/`。每個獨立生成單元指定 `start_frame_reference_id`，與完整運鏡參考及已選定人物參考圖共同交付；一般參考與原生首幀的欄位依實際模式決定，不能因新增起始圖省略運鏡頁或人物來源。新套件宣告 `asset_contract: "start_frame_v1"`，各鏡／單元保存 `reference_ids` 及已查證的 `reference_limits`。
+
+依[人物參考的選用與交付](character-image-assets.md#人物參考的選用與交付)鎖定各角色採用的圖檔與版本；核對本包 `media/` 副本、manifest、提示詞與提交來源的 ID、路徑及雜湊一致。已採用設定圖的角色不改拿原照；只作來源追溯的照片不自動加入輸入清單。
 
 每鏡採用素材與每次提交均最多 9 張圖片、3 段影片參考、3 段聲音參考；起始圖及原生首／尾幀計入圖片，一張完整六格頁算 1 張。合併單元按整次輸入重算，共用來源實際送一次才算一次；以更嚴格模型限制為準，H3 全部參考合計最多 12 個。超額分配及必要來源保存依[數量規則](start-frame-assets.md#數量與分配)處理，不靜默刪圖或擴大付費生成。
 

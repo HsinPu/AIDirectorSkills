@@ -53,7 +53,7 @@
       "generation_units": [
         {"unit_id": "U1", "duration_seconds": 5, "time_basis": "local",
          "reference_ids": ["SB_PAGE", "I1", "SF1"], "start_frame_reference_id": "SF1",
-         "prompt": "草稿：@image1完整六格運鏡頁提供構圖、動作與攝影意圖；@image2人物原照提供身分；@image3起始圖提供局部0秒構圖與成片風格。上傳後換成實際標籤；最終提示詞仍須完整。",
+         "prompt": "草稿：@image1完整六格運鏡頁提供構圖、動作與攝影意圖；@image2已選定人物參考圖提供身分；@image3起始圖提供局部0秒構圖與成片風格。上傳後換成實際標籤；最終提示詞仍須完整。",
          "storyboard_panels": [
            {"panel_id": "PN1", "shot_id": "SH1", "reference_id": "SB_PAGE",
             "panel_number": 1, "time_seconds": 0, "cut_before": false},
