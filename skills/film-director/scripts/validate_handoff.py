@@ -16,6 +16,7 @@ class Audit:
         self.root = Path(root).resolve()
         self.errors = []
         self.warnings = []
+        self.reference_counts = []
 
     def error(self, code, **evidence):
         self.errors.append({"code": code, **evidence})
@@ -94,6 +95,7 @@ class Audit:
         return {
             "status": "error" if self.errors else "needs_review" if self.warnings else "declared_checks_passed",
             "errors": self.errors, "warnings": self.warnings,
+            "reference_counts": self.reference_counts,
             "unverified": ["full_json_schema", "Blender_objects_and_animation", "media_decoding_and_metadata",
                            "actual_upload_bindings", "prompt_semantics_and_visual_quality", "nonlinear_time_mapping"],
         }
@@ -110,6 +112,62 @@ def reference(audit, value, known, where):
 
 
 REFERENCE_METHODS = {"storyboard_images", "blender_previs", "hyper3d_blender_previs"}
+STORYBOARD_IMAGE_ROLES = {"storyboard_frame", "storyboard_sequence_page"}
+REFERENCE_LIMITS = {"image": 9, "video": 3, "audio": 3}
+H3_MODELS = {"minimax/hailuo-3", "minimax/hailuo-3-max"}
+START_FRAME_CONTRACT = "start_frame_v1"
+
+
+def reference_limits(a, value, where, inherited=None, model=None):
+    limits = dict(inherited or REFERENCE_LIMITS)
+    if isinstance(model, str) and model in H3_MODELS:
+        limits["total"] = min(limits.get("total", 12), 12)
+    if value is not None:
+        for kind, cap in a.object(value, where).items():
+            if kind not in {*REFERENCE_LIMITS, "total"} or not number(cap, integer=True) or cap < 0:
+                a.error("INVALID_REFERENCE_LIMIT", where=where, kind=kind, value=cap)
+            else:
+                limits[kind] = min(limits.get(kind, cap), cap)
+    return limits
+
+
+def check_reference_count(a, reference_ids, refs, scope, limits):
+    counts = dict.fromkeys(REFERENCE_LIMITS, 0)
+    seen = set()
+    for ref_id in reference_ids:
+        if not isinstance(ref_id, str):
+            continue
+        if ref_id in seen:
+            a.error("DUPLICATE_INPUT_REFERENCE", scope=scope, reference=ref_id)
+        seen.add(ref_id)
+        kind = refs.get(ref_id, {}).get("kind")
+        if isinstance(kind, str) and kind in counts:
+            # Count input entries, not page cells; repeated entries do not evade a cap.
+            counts[kind] += 1
+    counts["total"] = sum(counts.values())
+    a.reference_counts.append({"scope": scope, "counts": counts, "limits": limits})
+    for kind, cap in limits.items():
+        if counts[kind] > cap:
+            a.error("REFERENCE_LIMIT_EXCEEDED", scope=scope, kind=kind, count=counts[kind], limit=cap)
+
+
+def check_start_frame(a, item, refs, reference_ids, ready_images, scope, required):
+    ref_id = item.get("start_frame_reference_id")
+    if ref_id is None and not required:
+        return
+    if not isinstance(ref_id, str) or not ref_id.strip():
+        a.error("MISSING_START_FRAME_REFERENCE", scope=scope)
+        return
+    reference(a, ref_id, refs, scope + ".start_frame_reference_id")
+    if ref_id not in reference_ids:
+        a.error("START_FRAME_NOT_IN_REFERENCES", scope=scope, reference=ref_id)
+    source = refs.get(ref_id, {})
+    if source and (source.get("kind") != "image" or source.get("role") != "start_frame_visual_reference"):
+        a.error("INVALID_START_FRAME_SOURCE", scope=scope, reference=ref_id)
+    if source and source.get("input_to_video_ai") is not True:
+        a.error("START_FRAME_NOT_VIDEO_INPUT", scope=scope, reference=ref_id)
+    if ref_id not in ready_images:
+        a.warn("START_FRAME_IMAGE_PENDING", scope=scope, reference=ref_id)
 
 
 def check_storyboard_panels(a, unit, refs, unit_refs, required=False):
@@ -118,14 +176,31 @@ def check_storyboard_panels(a, unit, refs, unit_refs, required=False):
     if required and not panels:
         a.error("NO_STORYBOARD_PANELS", unit=identifier)
     previous_time, previous_shot = None, None
+    page_cells, page_shots = set(), {}
     for panel_id, panel in panels.items():
         ref_id = panel.get("reference_id")
         reference(a, ref_id, refs, panel_id + ".reference_id")
         if ref_id not in unit_refs:
             a.error("PANEL_NOT_IN_UNIT_REFERENCES", panel=panel_id)
         source = refs.get(ref_id, {}) if isinstance(ref_id, str) else {}
-        if source and (source.get("kind") != "image" or source.get("role") != "storyboard_frame"):
+        if source and (source.get("kind") != "image" or source.get("role") not in STORYBOARD_IMAGE_ROLES):
             a.error("PANEL_REFERENCE_NOT_STORYBOARD_FRAME", panel=panel_id)
+        if source.get("role") == "storyboard_sequence_page":
+            count, ordinal = source.get("panel_count"), panel.get("panel_number")
+            if not number(count, integer=True) or count <= 0:
+                a.error("INVALID_STORYBOARD_PAGE_PANEL_COUNT", reference=ref_id)
+            if (not number(ordinal, integer=True) or ordinal <= 0
+                    or (number(count, integer=True) and ordinal > count)):
+                a.error("INVALID_STORYBOARD_PANEL_NUMBER", panel=panel_id)
+            else:
+                cell = (ref_id, ordinal)
+                if cell in page_cells:
+                    a.error("DUPLICATE_STORYBOARD_PAGE_PANEL", panel=panel_id, reference=ref_id)
+                page_cells.add(cell)
+            shot_id = panel.get("shot_id")
+            if ref_id in page_shots and page_shots[ref_id] != shot_id:
+                a.error("STORYBOARD_PAGE_MULTIPLE_SHOTS", reference=ref_id)
+            page_shots[ref_id] = shot_id
         timestamp, duration = panel.get("time_seconds"), unit.get("duration_seconds")
         if not number(timestamp) or timestamp < 0 or (number(duration) and timestamp > duration):
             a.error("PANEL_TIME_OUT_OF_RANGE", panel=panel_id)
@@ -255,6 +330,11 @@ def check_scene(a, data, hardware=None):
 
 def check_package(a, data):
     d = a.object(data, "package")
+    contract = d.get("asset_contract")
+    if contract is not None and contract != START_FRAME_CONTRACT:
+        a.error("INVALID_ASSET_CONTRACT", value=contract)
+    require_start = contract == START_FRAME_CONTRACT
+    limits = reference_limits(a, d.get("reference_limits"), "package.reference_limits", model=d.get("model"))
     default_method = d.get("reference_method")
     if default_method is not None and (not isinstance(default_method, str) or default_method not in REFERENCE_METHODS):
         a.error("INVALID_REFERENCE_METHOD", where="package")
@@ -262,6 +342,7 @@ def check_package(a, data):
     units = a.index(d.get("generation_units"), "generation_units", key="unit_id")
     labels = {}
     ready_characters = set()
+    ready_images = set()
     for identifier, item in refs.items():
         available = item.get("available")
         if not isinstance(available, bool):
@@ -295,6 +376,16 @@ def check_package(a, data):
             asset_ids = a.array(item.get("asset_ids", []), identifier + ".asset_ids")
             if available and target and target.stat().st_size and not placeholder and item.get("kind") == "image":
                 ready_characters.update(x for x in asset_ids if isinstance(x, str))
+        if available and target and target.stat().st_size and not placeholder and item.get("kind") == "image":
+            ready_images.add(identifier)
+    for identifier, shot in a.index(d.get("shots", []), "shots", key="shot_id").items():
+        shot_refs = a.array(shot.get("reference_ids"), identifier + ".reference_ids")
+        for ref_id in shot_refs:
+            reference(a, ref_id, refs, identifier)
+        shot_limits = reference_limits(a, shot.get("reference_limits"), identifier + ".reference_limits",
+                                       inherited=limits, model=shot.get("model", d.get("model")))
+        check_reference_count(a, shot_refs, refs, "shot:" + identifier, shot_limits)
+        check_start_frame(a, shot, refs, shot_refs, ready_images, "shot:" + identifier, require_start)
     if not units:
         a.error("NO_GENERATION_UNITS")
     for identifier, unit in units.items():
@@ -313,6 +404,10 @@ def check_package(a, data):
             reference(a, ref_id, refs, identifier)
             if isinstance(ref_id, str) and refs.get(ref_id, {}).get("role") == "storyboard_review":
                 a.error("STORYBOARD_REVIEW_AS_GENERATION_REFERENCE", unit=identifier, reference=ref_id)
+        unit_limits = reference_limits(a, unit.get("reference_limits"), identifier + ".reference_limits",
+                                       inherited=limits, model=unit.get("model", d.get("model")))
+        check_reference_count(a, unit_refs, refs, "unit:" + identifier, unit_limits)
+        check_start_frame(a, unit, refs, unit_refs, ready_images, "unit:" + identifier, require_start)
         if method == "storyboard_images" or "storyboard_panels" in unit:
             check_storyboard_panels(a, unit, refs, unit_refs, required=method == "storyboard_images")
         source_id = unit.get("source_reference_id")

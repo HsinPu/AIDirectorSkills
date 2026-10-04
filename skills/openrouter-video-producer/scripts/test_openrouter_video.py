@@ -171,5 +171,96 @@ class WorkflowTests(unittest.TestCase):
             video.NoRedirect().redirect_request(None, None, 302, "", {}, "https://external.example")
 
 
+class ReferenceValidationTests(unittest.TestCase):
+    def payload(self, counts, model="test/video"):
+        refs = [{"type": kind + "_url", kind + "_url": {"url": f"https://example.com/{kind}-{n}"}}
+                for kind, count in counts.items() for n in range(count)]
+        return {**PAYLOAD, "model": model, "input_references": refs}
+
+    def test_each_type_boundary_and_excess(self):
+        for kind, limit in (("image", 9), ("video", 3), ("audio", 3)):
+            with self.subTest(kind=kind):
+                self.assertEqual(video.validate_references(self.payload({kind: limit}))[kind], limit)
+                with self.assertRaisesRegex(ValueError, "超額"):
+                    video.validate_references(self.payload({kind: limit + 1}))
+
+    def test_full_board_and_start_image_are_files_not_panel_counts(self):
+        payload = self.payload({"image": 3})
+        self.assertEqual(video.validate_references(payload), {"image": 3, "video": 0, "audio": 0, "total": 3})
+
+    def test_repeated_url_entries_still_count(self):
+        payload = self.payload({"image": 9})
+        payload["input_references"].append(payload["input_references"][0])
+        with self.assertRaisesRegex(ValueError, "image=10"):
+            video.validate_references(payload)
+
+    def test_generated_audio_is_not_an_audio_reference(self):
+        payload = {**PAYLOAD, "generate_audio": True}
+        video.validate(payload, {**MODEL, "generate_audio": True})
+        self.assertEqual(video.validate_references(payload)["audio"], 0)
+
+    def test_native_frames_count_as_images_and_mixed_modes_are_rejected(self):
+        payload = {**PAYLOAD, "frame_images": [
+            {"type": "image_url", "image_url": {"url": "https://example.com/start.png"}, "frame_type": "first_frame"}]}
+        self.assertEqual(video.validate_references(payload)["image"], 1)
+        video.validate(payload, MODEL)
+        payload["input_references"] = self.payload({"image": 1})["input_references"]
+        with self.assertRaisesRegex(ValueError, "frame_images"):
+            video.validate(payload, MODEL)
+
+    def test_stricter_limits_and_zero_support_cannot_be_relaxed(self):
+        with self.assertRaisesRegex(ValueError, "上限 6"):
+            video.validate_references(self.payload({"image": 7}), {"image": 6})
+        with self.assertRaisesRegex(ValueError, "上限 9"):
+            video.validate_references(self.payload({"image": 10}), {"image": 99})
+        with self.assertRaisesRegex(ValueError, "上限 0"):
+            video.validate_references(self.payload({"audio": 1}), {"audio": 0})
+
+    def test_h3_total_twelve_boundary_for_both_models(self):
+        for model_id in video.H3_MODELS:
+            with self.subTest(model=model_id):
+                self.assertEqual(video.validate_references(self.payload({"image": 8, "video": 2, "audio": 2}, model_id))["total"], 12)
+                with self.assertRaisesRegex(ValueError, "total=13"):
+                    video.validate_references(self.payload({"image": 9, "video": 2, "audio": 2}, model_id), {"total": 99})
+
+    def test_unknown_malformed_and_empty_inputs_are_rejected(self):
+        for refs in (None, {}, [None], [{"type": []}], [{"type": "unknown"}], [{"type": "image_url", "image_url": {"url": ""}}],
+                     [{"type": "audio_url", "audio_url": "https://example.com/a.wav"}]):
+            with self.subTest(refs=refs), self.assertRaises(ValueError):
+                video.validate_references({**PAYLOAD, "input_references": refs})
+        for limits in ([], {"image": True}, {"image": -1}, {"image": 1.5}, {"typo": 1}):
+            with self.subTest(limits=limits), self.assertRaises(ValueError):
+                video.validate_references(PAYLOAD, limits)
+
+    def test_excess_is_blocked_before_paid_post_or_job_intent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            request_path = Path(directory) / "request.json"
+            job_path = Path(directory) / "job.json"
+            request_path.write_text(json.dumps(self.payload({"image": 10})), encoding="utf-8")
+            with patch.dict(video.os.environ, {"OPENROUTER_API_KEY": "test-key"}), \
+                 patch.object(video, "model_list", return_value={"data": [MODEL]}), \
+                 patch.object(video, "api_json") as api, self.assertRaisesRegex(ValueError, "超額"):
+                video.submit(request_path, job_path)
+            api.assert_not_called()
+            self.assertFalse(job_path.exists())
+
+    def test_cli_uses_local_limit_file_without_sending_it_to_api(self):
+        with tempfile.TemporaryDirectory() as directory:
+            task_root = Path(directory)
+            request_path, job_path, limits_path = (task_root / name for name in ("request.json", "job.json", "limits.json"))
+            payload = self.payload({"image": 1})
+            request_path.write_text(json.dumps(payload), encoding="utf-8")
+            limits_path.write_text(json.dumps({"image": 1}), encoding="utf-8")
+            with patch.dict(video.os.environ, {"OPENROUTER_API_KEY": "test-key"}), \
+                 patch.object(video.sys, "argv", ["video", "submit", "--request", str(request_path),
+                                                 "--job", str(job_path), "--reference-limits", str(limits_path)]), \
+                 patch.object(video, "model_list", return_value={"data": [MODEL]}), \
+                 patch.object(video, "api_json", return_value={"id": "job-1", "status": "pending"}) as api, \
+                 patch.object(video.sys, "stdout", io.StringIO()):
+                self.assertEqual(video.main(), 0)
+            api.assert_called_once_with("/videos", payload)
+            self.assertNotIn("reference_limits", video.read_json(request_path))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -6,7 +6,9 @@
 
 ## 狀態與標記
 
-先依[參考路線](storyboard-image-workflow.md)登記 `reference_method` 與適用範圍。A 的 `stage_reviews` 記錄整批 `storyboard_images`，索引審閱頁、乾淨單格與格子時間；下文 Blender 專屬工程及靜態／動畫項目在 A 記為 `not_applicable`。B、C 沿用靜態與動畫紀錄；舊紀錄的選項意義維持不變，不要求既有專案重做。
+新製作的起始畫面另用 `start_frame_image_status` 追蹤，套件宣告 `asset_contract: "start_frame_v1"`。依[起始畫面資產](start-frame-assets.md)保留每鏡／單元的起始圖指標、三類參考的數量與限制、來源及 API 模式。起始構圖、風格或道具開場狀態修改時，只使受影響圖片、提示詞與生成結果的核准失效；不強制重畫未變運鏡頁或重建 Blender。舊包保持相容，補登記不冒充圖已完成。
+
+先依[參考路線](storyboard-image-workflow.md)登記 `reference_method` 與適用範圍。A 的 `stage_reviews` 記錄整批 `storyboard_images`，索引已採用的完整運鏡原頁、各鏡 `media` 內的人物原照與全部格子時間；另有明確需要而採用的單格參考分別登記，不取代完整原頁。下文 Blender 專屬工程及靜態／動畫項目在 A 記為 `not_applicable`。B、C 沿用靜態與動畫紀錄；舊紀錄的選項意義維持不變，不要求既有專案重做。
 
 project-state.json 是機器可讀的單一現況入口；PROJECT.md 提供人員摘要。接續工作時，先讀狀態、目前場景、相關已確認設定、前後連續性及未決問題，再提問或製作。追蹤 project_kind、current work_scope、單集進度、last_checkpoint 及 resume_context。區分已寫但尚未製作的章節，與尚未撰寫的故事。creative_documents 索引訪談、具名角色、攝影／色彩、劇本及完整分鏡；stage_reviews 分別記錄靜態與動畫的展示及意見。不要捏造缺失的舊訪談。
 

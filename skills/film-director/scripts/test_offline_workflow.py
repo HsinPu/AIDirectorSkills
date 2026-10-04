@@ -271,6 +271,210 @@ class HandoffTests(unittest.TestCase):
         self.assertEqual(self.audit.errors + self.audit.warnings, [])
         self.assertEqual(self.audit.result()["status"], "declared_checks_passed")
 
+    def sequence_page_package(self):
+        data = self.storyboard_package()
+        character = dict(data["references"][0], label="@image2")
+        page = dict(data["references"][1], role="storyboard_sequence_page",
+                    panel_count=6, label="@image1")
+        data["references"] = [page, character]
+        unit = data["generation_units"][0]
+        unit["reference_ids"] = ["SB1", "I1"]
+        unit["prompt"] = "Use the full six-panel camera board plus the character photo"
+        unit["storyboard_panels"] = [
+            {"panel_id": f"PN{n}", "shot_id": "SH1", "reference_id": "SB1",
+             "panel_number": n, "time_seconds": timestamp, "cut_before": False}
+            for n, timestamp in enumerate([0, 1, 3, 5, 7, 9.8], start=1)]
+        return data
+
+    def test_full_six_panel_page_is_a_generation_reference(self):
+        handoff.check_package(self.audit, self.sequence_page_package())
+        self.assertEqual(self.audit.errors + self.audit.warnings, [])
+
+    def start_frame_package(self):
+        data = self.sequence_page_package()
+        data["asset_contract"] = "start_frame_v1"
+        (self.root / "start.png").write_bytes(b"NONEMPTY_START_IMAGE_FIXTURE_NOT_DECODED")
+        data["references"].append({"id": "SF1", "kind": "image", "role": "start_frame_visual_reference",
+                                   "input_to_video_ai": True, "path": "start.png", "available": True,
+                                   "binding_status": "bound", "label": "@image3"})
+        data["generation_units"][0].update(start_frame_reference_id="SF1", reference_ids=["SB1", "I1", "SF1"])
+        return data
+
+    def test_start_frame_full_board_and_identity_are_three_image_inputs(self):
+        handoff.check_package(self.audit, self.start_frame_package())
+        self.assertEqual(self.audit.errors + self.audit.warnings, [])
+        self.assertEqual(self.audit.result()["reference_counts"][0]["counts"],
+                         {"image": 3, "video": 0, "audio": 0, "total": 3})
+
+    def test_new_contract_requires_start_frame_for_each_unit(self):
+        data = self.start_frame_package()
+        data["generation_units"].append({**data["generation_units"][0], "unit_id": "U2"})
+        del data["generation_units"][1]["start_frame_reference_id"]
+        handoff.check_package(self.audit, data)
+        self.assertIn("MISSING_START_FRAME_REFERENCE", self.codes())
+        self.assertEqual(next(e["scope"] for e in self.audit.errors
+                              if e["code"] == "MISSING_START_FRAME_REFERENCE"), "unit:U2")
+
+    def test_start_frame_must_be_a_declared_input_of_the_unit(self):
+        data = self.start_frame_package()
+        data["generation_units"][0]["reference_ids"].remove("SF1")
+        handoff.check_package(self.audit, data)
+        self.assertIn("START_FRAME_NOT_IN_REFERENCES", self.codes())
+
+    def test_start_frame_rejects_unknown_wrong_kind_wrong_role_and_non_input(self):
+        for change, code in (({"kind": "video"}, "INVALID_START_FRAME_SOURCE"),
+                             ({"role": "character_appearance"}, "INVALID_START_FRAME_SOURCE"),
+                             ({"input_to_video_ai": False}, "START_FRAME_NOT_VIDEO_INPUT")):
+            with self.subTest(change=change):
+                data = self.start_frame_package()
+                data["references"][-1].update(change)
+                audit = handoff.Audit(self.root)
+                handoff.check_package(audit, data)
+                self.assertIn(code, {e["code"] for e in audit.errors})
+        data = self.start_frame_package()
+        data["generation_units"][0]["start_frame_reference_id"] = "UNKNOWN"
+        handoff.check_package(self.audit, data)
+        self.assertIn("UNKNOWN_REFERENCE", self.codes())
+
+    def test_missing_empty_placeholder_and_pending_start_image_are_not_ready(self):
+        for state in ("missing", "empty", "placeholder", "pending"):
+            with self.subTest(state=state):
+                data = self.start_frame_package()
+                target = self.root / "start.png"
+                if state == "missing":
+                    target.unlink()
+                elif state == "empty":
+                    target.write_bytes(b"")
+                elif state == "placeholder":
+                    target.write_bytes(b"BlenderAIPrevisPlaceholder\x00true")
+                else:
+                    data["references"][-1]["available"] = False
+                audit = handoff.Audit(self.root)
+                handoff.check_package(audit, data)
+                self.assertIn("START_FRAME_IMAGE_PENDING", {w["code"] for w in audit.warnings})
+                self.assertNotEqual(audit.result()["status"], "declared_checks_passed")
+
+    def count_package(self, counts):
+        refs = [{"id": f"{kind}{n}", "kind": kind, "path": "person.png", "available": True,
+                 "binding_status": "bound", "label": f"@{kind}{n}"}
+                for kind, count in counts.items() for n in range(count)]
+        return {"references": refs, "generation_units": [{"unit_id": "U1", "duration_seconds": 5,
+                "time_basis": "local", "reference_ids": [r["id"] for r in refs], "prompt": "Count fixture"}]}
+
+    def test_reference_type_boundaries_and_excess(self):
+        for kind, limit in (("image", 9), ("video", 3), ("audio", 3)):
+            for count in (limit, limit + 1):
+                with self.subTest(kind=kind, count=count):
+                    audit = handoff.Audit(self.root)
+                    handoff.check_package(audit, self.count_package({kind: count}))
+                    self.assertEqual("REFERENCE_LIMIT_EXCEEDED" in {e["code"] for e in audit.errors}, count > limit)
+                    if count == limit:
+                        self.assertEqual(audit.errors + audit.warnings, [])
+
+    def test_per_shot_caps_and_combined_unit_caps_are_both_checked(self):
+        data = self.count_package({"image": 12})
+        refs = data["generation_units"][0]["reference_ids"]
+        data["shots"] = [{"shot_id": "SH1", "reference_ids": refs[:6]},
+                         {"shot_id": "SH2", "reference_ids": refs[6:]}]
+        handoff.check_package(self.audit, data)
+        self.assertEqual([e["scope"] for e in self.audit.errors if e["code"] == "REFERENCE_LIMIT_EXCEEDED"], ["unit:U1"])
+        data["generation_units"][0]["reference_ids"] = refs[:6]
+        data["shots"][0]["reference_ids"] = refs[:10]
+        audit = handoff.Audit(self.root)
+        handoff.check_package(audit, data)
+        self.assertEqual([e["scope"] for e in audit.errors if e["code"] == "REFERENCE_LIMIT_EXCEEDED"], ["shot:SH1"])
+
+    def test_shared_once_counts_once_duplicate_input_cannot_evade_cap(self):
+        data = self.count_package({"image": 9})
+        refs = data["generation_units"][0]["reference_ids"]
+        data["shots"] = [{"shot_id": "SH1", "reference_ids": refs[:5]},
+                         {"shot_id": "SH2", "reference_ids": refs[4:]}]
+        handoff.check_package(self.audit, data)
+        self.assertEqual(self.audit.errors + self.audit.warnings, [])
+        self.assertEqual(self.audit.reference_counts[-1]["counts"]["image"], 9)
+        refs.append(refs[0])
+        audit = handoff.Audit(self.root)
+        handoff.check_package(audit, data)
+        self.assertTrue({"DUPLICATE_INPUT_REFERENCE", "REFERENCE_LIMIT_EXCEEDED"} <= {e["code"] for e in audit.errors})
+
+    def test_stricter_limits_inherit_and_cannot_be_relaxed(self):
+        data = self.count_package({"image": 7})
+        data["reference_limits"] = {"image": 6}
+        data["generation_units"][0]["reference_limits"] = {"image": 99}
+        handoff.check_package(self.audit, data)
+        self.assertEqual(self.audit.reference_counts[0]["limits"]["image"], 6)
+        self.assertIn("REFERENCE_LIMIT_EXCEEDED", self.codes())
+        data = self.count_package({"audio": 1})
+        data["generation_units"][0]["reference_limits"] = {"audio": 0}
+        audit = handoff.Audit(self.root)
+        handoff.check_package(audit, data)
+        self.assertIn("REFERENCE_LIMIT_EXCEEDED", {e["code"] for e in audit.errors})
+
+    def test_invalid_limits_and_unknown_contract_are_rejected(self):
+        for value in ({"image": True}, {"image": -1}, {"image": 1.5}, {"imag": 2}, []):
+            audit = handoff.Audit(self.root)
+            data = self.count_package({"image": 1})
+            data["reference_limits"] = value
+            handoff.check_package(audit, data)
+            self.assertTrue(audit.errors)
+        data = self.start_frame_package()
+        data["asset_contract"] = "future_typo"
+        handoff.check_package(self.audit, data)
+        self.assertIn("INVALID_ASSET_CONTRACT", self.codes())
+
+    def test_h3_total_cap_applies_to_package_and_unit_model(self):
+        for model_id in handoff.H3_MODELS:
+            for position in ("package", "unit"):
+                for count, expected_error in ((8, False), (9, True)):
+                    with self.subTest(model=model_id, position=position, image_count=count):
+                        data = self.count_package({"image": count, "video": 2, "audio": 2})
+                        record = data if position == "package" else data["generation_units"][0]
+                        record.update(model=model_id, reference_limits={"total": 99})
+                        audit = handoff.Audit(self.root)
+                        handoff.check_package(audit, data)
+                        self.assertEqual(bool(audit.errors), expected_error)
+                        self.assertEqual(audit.reference_counts[0]["limits"]["total"], 12)
+
+    def test_declared_shot_requires_its_start_reference_under_new_contract(self):
+        data = self.start_frame_package()
+        data["shots"] = [{"shot_id": "SH1", "reference_ids": ["SB1", "I1", "SF1"]}]
+        handoff.check_package(self.audit, data)
+        self.assertIn("MISSING_START_FRAME_REFERENCE", self.codes())
+
+    def test_sequence_page_rejects_invalid_cell_numbers(self):
+        for ordinal in (None, 0, 7, True):
+            with self.subTest(ordinal=ordinal):
+                audit = handoff.Audit(self.root)
+                data = self.sequence_page_package()
+                data["generation_units"][0]["storyboard_panels"][2]["panel_number"] = ordinal
+                handoff.check_package(audit, data)
+                self.assertIn("INVALID_STORYBOARD_PANEL_NUMBER", {e["code"] for e in audit.errors})
+
+    def test_sequence_page_rejects_duplicate_cells(self):
+        data = self.sequence_page_package()
+        data["generation_units"][0]["storyboard_panels"][-1]["panel_number"] = 5
+        handoff.check_package(self.audit, data)
+        self.assertIn("DUPLICATE_STORYBOARD_PAGE_PANEL", self.codes())
+
+    def test_sequence_page_rejects_multiple_shots_on_one_page(self):
+        data = self.sequence_page_package()
+        data["generation_units"][0]["storyboard_panels"][-1].update(shot_id="SH2", cut_before=True)
+        handoff.check_package(self.audit, data)
+        self.assertIn("STORYBOARD_PAGE_MULTIPLE_SHOTS", self.codes())
+
+    def test_multiple_full_pages_in_one_unit_keep_their_own_cells(self):
+        data = self.sequence_page_package()
+        data["references"].append(dict(data["references"][0], id="SB2", label="@image3"))
+        unit = data["generation_units"][0]
+        unit["duration_seconds"] = 20
+        unit["reference_ids"].append("SB2")
+        unit["storyboard_panels"].extend([
+            {"panel_id": f"PN{n+6}", "shot_id": "SH2", "reference_id": "SB2",
+             "panel_number": n, "time_seconds": timestamp+10, "cut_before": n == 1}
+            for n, timestamp in enumerate([0, 1, 3, 5, 7, 9.8], start=1)])
+        handoff.check_package(self.audit, data)
+        self.assertEqual(self.audit.errors + self.audit.warnings, [])
+
     def test_storyboard_cut_changes_shot_id(self):
         data = self.storyboard_package()
         data["generation_units"][0]["storyboard_panels"][1].update(shot_id="SH2", cut_before=True)

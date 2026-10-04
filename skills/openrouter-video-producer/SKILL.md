@@ -40,6 +40,8 @@ description: 透過 OpenRouter API 生成影片，支援文字、首尾幀與參
 使用 MiniMax H3／H3 Max 時，先讀 [H3 素材引用與提示詞](references/minimax-h3-reference-prompts.md)，核對素材數量與時長上限，依文字／首尾幀或多素材參考選擇格式。分清 MiniMax 原生標籤、fal 素材順序與 OpenRouter 實際映射；上游功能不能直接視為 OpenRouter 已支援。
 
 - 先讀使用者指定的 `prompt.md`、`shot-manifest.json` 或生成單元紀錄。多鏡單元仍是一次提交；逐鏡資料夾不自動各付費生成。
+- 新導演套件的 `asset_contract: "start_frame_v1"` 須有每單元的 `start_frame_reference_id`：實際成片風格起始圖在本包 `media/` 且列入輸入。來源表分開登記起始圖、完整運鏡頁／預演與人物原照；起始圖管開場構圖與風格，運鏡參考管後續動作，原照管身分，保留劇本要求的 HUD。沿用已確認圖片，不因轉換 API 重畫；舊包不強制追溯補圖。單獨要求文字生成仍依使用者範圍辦理，不新增導演流程。
+- 每鏡採用媒體與每次實際請求最多 9 張圖片、3 段影片參考、3 段聲音參考，並套用較嚴格的模型／供應商限制。起始圖、原生首／尾幀與人物圖計入圖片，一張六格運鏡頁算 1 張；輸出聲音不算聲音參考。合併多鏡按全部輸入重算；H3／H3 Max 另合計最多 12 個。超額不能靜默刪除必要參考，分配與記錄見 [API 與素材對應](references/api-and-assets.md#素材配額與提交檢查)。
 - 保留已確認的故事、角色、臉部身分、運鏡、聲音及接點要求。沒有角色的影片明寫臉部身分要求不適用；沒有參考圖時使用文字設定，不虛構身分綁定。
 - 原平台的 `@imageN`／`@videoN` 不等於 OpenRouter API 綁定。建立檔案到 API 輸入欄位的對照，將提示詞改為實際可解析的來源描述；不把 Blender 結構預演誤作最終美術。
 - 模型不能使用某種影片／聲音參考時，不靜默省略。調整模型或與使用者解決需求，再提交。
@@ -56,7 +58,7 @@ python scripts/openrouter_video.py status --job <unit>/job.json
 python scripts/openrouter_video.py download --job <unit>/job.json --out <unit>/video.mp4
 ```
 
-程式每次只查詢一次，由助理安排輪詢與進度更新；不建立常駐服務。提交前自動驗證模型公開列出的基本能力，不代替供應商參數或參考素材能力的查證。已有工作紀錄時拒絕重新提交；下載先寫 `.part` 再改名。程式不會自動重送 POST，也不會自動把帳號認證傳到外部影片 URL。
+程式每次只查詢一次，由助理安排輪詢與進度更新；不建立常駐服務。提交前自動驗證模型公開列出的基本能力及實際 API 素材數量（9／3／3，H3 合計 12），不代替供應商參數或參考素材能力的查證。更嚴格限制可用 `submit --reference-limits <unit>/reference-limits.json` 傳入，只在本機使用，不填入 API payload。程式拒絕同時使用非空 `frame_images` 與 `input_references`，避免前者優先造成必要參考被忽略。已有工作紀錄時拒絕重新提交；下載先寫 `.part` 再改名。程式不會自動重送 POST，也不會自動把帳號認證傳到外部影片 URL。
 
 CLI 遇錯會在工作紀錄（或模型清單輸出）旁建立獨立的 `*.error-<識別碼>.json`，保留可讀取的 HTTP 回應正文並遮蔽 API Key，回傳 `requires_user_input: true` 與非零退出碼。助理收到後須依上述規則詢問；程式本身不會彈出互動選單。提交結果未知的意圖紀錄仍保留，錯誤檔不取代 `job.json`。
 

@@ -13,6 +13,8 @@ import uuid
 
 BASE = "https://openrouter.ai/api/v1"
 TERMINAL_FAILURES = {"failed", "cancelled", "expired"}
+REFERENCE_LIMITS = {"image": 9, "video": 3, "audio": 3}
+H3_MODELS = {"minimax/hailuo-3", "minimax/hailuo-3-max"}
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -107,7 +109,47 @@ def model_list():
     return result
 
 
-def validate(payload, model):
+def validate_references(payload, reference_limits=None):
+    """Count actual API entries; local limits never relax the production caps."""
+    limits = dict(REFERENCE_LIMITS)
+    model_id = payload.get("model")
+    if isinstance(model_id, str) and model_id in H3_MODELS:
+        limits["total"] = 12
+    if reference_limits is not None:
+        if not isinstance(reference_limits, dict):
+            raise ValueError("reference_limits 必須為數量上限物件。")
+        for kind, cap in reference_limits.items():
+            if kind not in {*REFERENCE_LIMITS, "total"} or type(cap) is not int or cap < 0:
+                raise ValueError("素材上限須為 image/video/audio/total 的非負整數。")
+            limits[kind] = min(limits.get(kind, cap), cap)
+    counts = dict.fromkeys(REFERENCE_LIMITS, 0)
+    for field in ("frame_images", "input_references"):
+        entries = payload.get(field, [])
+        if not isinstance(entries, list):
+            raise ValueError(f"{field} 必須為陣列。")
+        for entry in entries:
+            if not isinstance(entry, dict):
+                raise ValueError(f"{field} 的項目必須為物件。")
+            source_type = entry.get("type")
+            kind = ({"image_url": "image", "video_url": "video", "audio_url": "audio"}.get(source_type)
+                    if isinstance(source_type, str) else None)
+            if kind is None or (field == "frame_images" and kind != "image"):
+                raise ValueError(f"{field} 的素材類型無效。")
+            content = entry.get(source_type)
+            if not isinstance(content, dict) or not isinstance(content.get("url"), str) or not content["url"].strip():
+                raise ValueError(f"{field} 需要非空的素材 URL。")
+            counts[kind] += 1
+    counts["total"] = sum(counts.values())
+    for kind, cap in limits.items():
+        if counts[kind] > cap:
+            raise ValueError(f"參考素材超額：{kind}={counts[kind]}，上限 {cap}。")
+    if payload.get("frame_images") and payload.get("input_references"):
+        raise ValueError("frame_images 會優先於 input_references；請先選定保留必要素材的參考模式。")
+    return counts
+
+
+def validate(payload, model, reference_limits=None):
+    validate_references(payload, reference_limits)
     if not isinstance(payload.get("prompt"), str) or not payload["prompt"].strip():
         raise ValueError("需要非空的 prompt。")
     for field, capability in (
@@ -147,7 +189,7 @@ def job_id(job):
     return identifier
 
 
-def submit(request_path, job_path):
+def submit(request_path, job_path, reference_limits=None):
     target = Path(job_path)
     if target.exists():
         raise ValueError("工作紀錄已存在；請查詢或使用另一次已授權嘗試的目錄。")
@@ -157,7 +199,7 @@ def submit(request_path, job_path):
     model = next((m for m in model_list()["data"] if m["id"] == payload.get("model")), None)
     if model is None:
         raise ValueError("模型不在即時影片模型清單內。")
-    validate(payload, model)
+    validate(payload, model, reference_limits)
     target.parent.mkdir(parents=True, exist_ok=True)
     # 先獨占建立意圖紀錄；即使 POST 逾時，也阻止盲目重送。
     with target.open("x", encoding="utf-8") as handle:
@@ -220,6 +262,7 @@ def main():
     submit_parser = commands.add_parser("submit")
     submit_parser.add_argument("--request", required=True)
     submit_parser.add_argument("--job", required=True)
+    submit_parser.add_argument("--reference-limits", help="已查證的較嚴格素材數量上限 JSON，不傳入 API")
     status_parser = commands.add_parser("status")
     status_parser.add_argument("--job", required=True)
     download_parser = commands.add_parser("download")
@@ -233,7 +276,8 @@ def main():
             Path(args.out).parent.mkdir(parents=True, exist_ok=True)
             save_json(args.out, result)
         elif args.command == "submit":
-            result = submit(args.request, args.job)
+            limits = read_json(args.reference_limits) if args.reference_limits else None
+            result = submit(args.request, args.job, limits)
         elif args.command == "status":
             result = status(args.job)
         else:
