@@ -15,6 +15,8 @@ BASE = "https://openrouter.ai/api/v1"
 TERMINAL_FAILURES = {"failed", "cancelled", "expired"}
 REFERENCE_LIMITS = {"image": 9, "video": 3, "audio": 3}
 H3_MODELS = {"minimax/hailuo-3", "minimax/hailuo-3-max"}
+GROK_LITE_MODEL = "x-ai/grok-imagine-video-1.5-lite"
+HEYGEN_VIDEO_MODEL = "heygen/heygen-video-1"
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -115,6 +117,16 @@ def validate_references(payload, reference_limits=None):
     model_id = payload.get("model")
     if isinstance(model_id, str) and model_id in H3_MODELS:
         limits["total"] = 12
+    if model_id == HEYGEN_VIDEO_MODEL:
+        limits["total"] = 12
+        frames = payload.get("frame_images", [])
+        if isinstance(frames, list) and len(frames) > 1:
+            raise ValueError("HeyGen Video 圖片模式只接受單一首幀。")
+    # 2026-10-07: Lite is documented for text or one first frame, not general references.
+    if model_id == GROK_LITE_MODEL:
+        limits.update(image=1, video=0, audio=0)
+        if payload.get("input_references"):
+            raise ValueError("Grok Imagine Video 1.5 Lite 尚未查證一般參考模式；請使用文字或單一首幀。")
     if reference_limits is not None:
         if not isinstance(reference_limits, dict):
             raise ValueError("reference_limits 必須為數量上限物件。")
@@ -145,6 +157,8 @@ def validate_references(payload, reference_limits=None):
             raise ValueError(f"參考素材超額：{kind}={counts[kind]}，上限 {cap}。")
     if payload.get("frame_images") and payload.get("input_references"):
         raise ValueError("frame_images 會優先於 input_references；請先選定保留必要素材的參考模式。")
+    if model_id == HEYGEN_VIDEO_MODEL and payload.get("input_references") and not (counts["image"] or counts["video"]):
+        raise ValueError("HeyGen Video 參考模式至少需要一張圖片或一段影片，不能只有聲音。")
     return counts
 
 
@@ -164,10 +178,25 @@ def validate(payload, model, reference_limits=None):
         raise ValueError("duration 必須為整數。")
     if "size" in payload and ("resolution" in payload or "aspect_ratio" in payload):
         raise ValueError("size 與 resolution/aspect_ratio 請選一種表示方式。")
-    if type(payload.get("generate_audio")) is not bool:
-        raise ValueError("請明確設定 generate_audio 為 true 或 false。")
-    if payload["generate_audio"] and model.get("generate_audio") is not True:
-        raise ValueError("模型未列出音訊生成能力。")
+    audio_capability = model.get("generate_audio")
+    if payload.get("model") == HEYGEN_VIDEO_MODEL:
+        # Native HeyGen Video generates its own audio; the false catalog flag is not a mute guarantee.
+        if "generate_audio" in payload:
+            raise ValueError("HeyGen Video 未公開可用聲音開關；請省略 generate_audio，靜音需求另行解決。")
+        if payload.get("resolution") == "2K" and payload.get("aspect_ratio") not in ("16:9", "9:16"):
+            raise ValueError("HeyGen Video 2K 請明確使用 16:9 或 9:16，並核對首幀比例。")
+        if len(payload["prompt"]) > 32000:
+            raise ValueError("HeyGen Video prompt 超過目前官方 32000 字元上限。")
+        if "seed" in payload and (type(payload["seed"]) is not int or not 0 <= payload["seed"] <= 4294967295):
+            raise ValueError("HeyGen Video seed 須為 0 到 4294967295 的整數。")
+    elif audio_capability is None:
+        if "generate_audio" in payload:
+            raise ValueError("模型未公開 generate_audio 開關；請省略並先查證必要聲音需求。")
+    else:
+        if type(payload.get("generate_audio")) is not bool:
+            raise ValueError("請明確設定 generate_audio 為 true 或 false。")
+        if payload["generate_audio"] and audio_capability is not True:
+            raise ValueError("模型未列出音訊生成能力。")
     if "seed" in payload:
         if type(payload["seed"]) is not int or model.get("seed") is not True:
             raise ValueError("seed 需要整數且模型須列出 seed 能力。")

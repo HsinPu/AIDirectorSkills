@@ -31,6 +31,8 @@
 - `duration`、`resolution`、`aspect_ratio`、`size`、首尾幀分別對應 `supported_durations`、`supported_resolutions`、`supported_aspect_ratios`、`supported_sizes`、`supported_frame_images`。
 - `size` 與解析度加比例是替代表示；避免同時提供矛盾值。
 - `seed` 僅在模型支援時使用，不能承諾完全可重現。
+- `generate_audio` 能力為 `true` 時明確選擇開關，為 `false` 時只接受關閉；為 `null` 或缺欄位時省略請求欄位，先查證必要聲音需求。未公開開關不代表成片沒有音軌，也不保證靜音。
+- HeyGen Video 是已查證的例外：模型官方描述固定生成音軌，但 OpenRouter 旗標為 `false`；省略 `generate_audio`，依 [HeyGen 規則](heygen-video.md) 處理聲音需求，不把能力旗標當成實際成片靜音證據。
 - `usage.cost` 是完成後回報的實際成本；估價來自 `pricing_skus` 與其計價單位，不把所有 SKU 都當成每秒費用。
 
 ## 圖片、影片與聲音
@@ -58,6 +60,10 @@
 使用 Seedance 的混合素材時，另依 [Seedance 素材綁定與提示詞](seedance-reference-prompts.md) 建立素材、API 欄位與提示詞指代的對照。以實際提交規則更新範例，不將其他平台的 `@` 標籤直接視為已完成綁定。
 
 使用 MiniMax H3／H3 Max 時，另依 [H3 素材引用與提示詞](minimax-h3-reference-prompts.md) 區分首尾幀與一般參考，核對所選供應商的指代與映射。fal 的 `reference_image_urls`、`reference_video_urls`、`reference_audio_urls` 是 fal 欄位，不直接填入 OpenRouter 請求；提示詞標籤也不能代替素材輸入。
+
+使用 [Grok Imagine Video 1.5 Lite](grok-imagine-video-1.5-lite.md) 時，目前採文字或單一 `first_frame`；一般參考、尾幀、影片及聲音參考未經 OpenRouter 查證，不套用其他 Grok 版本的能力。必要人物圖／運鏡頁無法共同傳入時先解決素材策略，不靜默刪除來源。
+
+使用 [HeyGen Video](heygen-video.md) 時，混合素材放 `input_references`，按類型分別編號並記錄原生 `<Picture N>`／`<Video N>`／`<Audio N>` 的來源。合計最多 12，至少有圖片或影片；參考影片只讀開頭 5 秒，先檢查需要的動作是否在其中。原生欄位與素材 asset ID 不直接填入 OpenRouter。
 
 ## 人物來源選擇與一致性
 

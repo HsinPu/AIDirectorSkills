@@ -26,6 +26,74 @@ class Response(io.BytesIO):
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_heygen_modes_audio_seed_and_2k_combination(self):
+        model = {**MODEL, "id": video.HEYGEN_VIDEO_MODEL, "seed": True,
+                 "supported_durations": list(range(5, 16)),
+                 "supported_resolutions": ["480p", "768p", "2K"],
+                 "supported_aspect_ratios": ["21:9", "16:9", "4:3", "1:1", "3:4", "9:16"]}
+        payload = {"model": video.HEYGEN_VIDEO_MODEL, "prompt": "咖啡店", "duration": 5,
+                   "resolution": "768p", "aspect_ratio": "16:9"}
+        frame = {"type": "image_url", "image_url": {"url": "https://example.com/start.png"},
+                 "frame_type": "first_frame"}
+        reference = {"type": "image_url", "image_url": {"url": "https://example.com/character.png"}}
+        for changes in ({}, {"frame_images": [frame]}, {"input_references": [reference]},
+                        {"resolution": "2K", "aspect_ratio": "9:16"}, {"seed": 0}, {"seed": 4294967295}):
+            video.validate({**payload, **changes}, model)
+        for changes in ({"generate_audio": False}, {"generate_audio": True}, {"seed": -1},
+                        {"seed": 4294967296}, {"seed": True}, {"resolution": "720p"},
+                        {"resolution": "2K", "aspect_ratio": "1:1"},
+                        {"duration": 4}, {"duration": 16}, {"prompt": "x" * 32001},
+                        {"frame_images": [frame, frame]},
+                        {"frame_images": [{**frame, "frame_type": "last_frame"}]}):
+            with self.subTest(changes=changes.keys()), self.assertRaises(ValueError):
+                video.validate({**payload, **changes}, model)
+
+    def test_heygen_reference_total_and_audio_only(self):
+        def ref(kind):
+            key = kind + "_url"
+            return {"type": key, key: {"url": "https://example.com/media"}}
+        refs = [ref("image")] * 9 + [ref("video")] * 2 + [ref("audio")]
+        payload = {"model": video.HEYGEN_VIDEO_MODEL, "input_references": refs}
+        self.assertEqual(video.validate_references(payload)["total"], 12)
+        with self.assertRaises(ValueError):
+            video.validate_references({**payload, "input_references": refs + [ref("audio")]}, {"total": 99})
+        with self.assertRaises(ValueError):
+            video.validate_references({**payload, "input_references": [ref("audio")]})
+        video.validate_references({**payload, "input_references": [ref("video"), ref("audio")]})
+
+    def test_unknown_audio_switch_is_omitted_without_promising_silence(self):
+        payload = {key: value for key, value in PAYLOAD.items() if key != "generate_audio"}
+        for capability in ({**MODEL, "generate_audio": None},
+                           {key: value for key, value in MODEL.items() if key != "generate_audio"}):
+            video.validate(payload, capability)
+            for audio in (True, False, None):
+                with self.subTest(audio=audio), self.assertRaises(ValueError):
+                    video.validate({**payload, "generate_audio": audio}, capability)
+        for audio in (True, False):
+            video.validate({**payload, "generate_audio": audio}, {**MODEL, "generate_audio": True})
+        with self.assertRaises(ValueError):
+            video.validate(payload, {**MODEL, "generate_audio": True})
+
+    def test_grok_lite_accepts_text_and_single_first_frame(self):
+        model = {**MODEL, "id": video.GROK_LITE_MODEL, "generate_audio": None,
+                 "seed": None, "supported_durations": list(range(1, 16)),
+                 "supported_resolutions": ["480p", "720p", "1080p"],
+                 "supported_aspect_ratios": ["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3"]}
+        payload = {"model": video.GROK_LITE_MODEL, "prompt": "雨夜", "duration": 5,
+                   "resolution": "720p", "aspect_ratio": "16:9"}
+        frame = {"type": "image_url", "image_url": {"url": "https://example.com/start.png"},
+                 "frame_type": "first_frame"}
+        video.validate(payload, model)
+        video.validate({**payload, "frame_images": [frame]}, model)
+        for changes in ({"duration": 16}, {"duration": 0}, {"duration": 5.5},
+                        {"resolution": "4K"}, {"aspect_ratio": "21:9"},
+                        {"size": "1280x720"}, {"seed": 42},
+                        {"frame_images": [{**frame, "frame_type": "last_frame"}]},
+                        {"frame_images": [frame, frame]},
+                        {"input_references": [frame]}):
+            with self.subTest(changes=changes), self.assertRaises(ValueError):
+                video.validate({**payload, **changes}, model)
+
     def test_cli_http_error_preserves_body_and_job_redacts_key_without_retry(self):
         with tempfile.TemporaryDirectory() as directory:
             job_path = Path(directory) / "job.json"

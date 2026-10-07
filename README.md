@@ -90,6 +90,8 @@ python skills/openrouter-video-producer/scripts/openrouter_video.py --help
 
 - [API 與素材對應](skills/openrouter-video-producer/references/api-and-assets.md)
 - [Seedance 素材綁定與提示詞](skills/openrouter-video-producer/references/seedance-reference-prompts.md)
+- [Grok Imagine Video 1.5 Lite 規則與價格](skills/openrouter-video-producer/references/grok-imagine-video-1.5-lite.md)
+- [HeyGen Video 素材、提示詞與計費規則](skills/openrouter-video-producer/references/heygen-video.md)
 - [解析度與畫面比例](skills/openrouter-video-producer/references/output-settings.md)
 
 ## 專案結構
