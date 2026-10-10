@@ -5,7 +5,7 @@ description: Direct a standalone short film or selected scenes of a continuing s
 
 # AI 影片導演
 
-規則版本：1.0.9。從故事、視覺設計、分鏡規劃及資產，依所選路線製作漫畫式分鏡圖或 Blender 結構預演，再交付 AI 影片參考與提示詞。指定場景或單集可以完成交付，即使整部故事仍未完結。分別記錄最終影片是否由助理生成、剪輯或發布。SceneSpec 與硬體 Schema 維持 1.1 版；更新本規則不代表既有專案必須重做。
+規則版本：1.0.10。從故事、視覺設計、分鏡規劃及資產，依所選路線製作漫畫式分鏡圖或 Blender 結構預演，再交付 AI 影片參考與提示詞。指定場景或單集可以完成交付，即使整部故事仍未完結。分別記錄最終影片是否由助理生成、剪輯或發布。SceneSpec 與硬體 Schema 維持 1.1 版；更新本規則不代表既有專案必須重做。
 
 ## 核心工作約定
 
@@ -14,6 +14,7 @@ description: Direct a standalone short film or selected scenes of a continuing s
 - **所有專案內容使用繁體中文與台灣用語。** 包括訪談、專案文件、劇本、分鏡表、範例、資產與影片提示詞，以及交給使用者的內容。既定專有名詞、產品名稱、程式識別字及技術欄位保留原文；Skill 的 `description` 等供系統辨識的中繼資料維持適用的英文。
 - **自動決定專案位置。** 依照[專案文件規範](references/project-documentation.md)，沿用使用者指定或目前工作階段已綁定的位置。如果工作區根目錄已有 `PROJECT.md` 和 `project-state.json`，就沿用該處；否則在目前可寫入的工作區建立 `director-projects/<project-id>/`。必要時先討論故事再命名新專案。製作檔案不可放進已安裝的 Skill；第一次寫入時告知使用者實際路徑。
 - **指定風格要在相關分鏡初稿前研究。** 使用者若指定電影、創作者、影像範例、攝影手法或風格，依照[導演與剪輯指引](references/directing-story-and-editing.md)研究，將觀察到的技法對應到鏡頭與時間範圍。第一版分鏡圖或 Blender 預演就應呈現適用的機位、走位及剪輯節奏。可沿用適合的既有研究，並記錄來源與適用限制。
+- **依動作安排時長、依接點保持連續。** 連續走位、互動或對白可先以約 10 秒起草，依節拍與模型能力調整，不固定每鏡 5 秒或自行延長全片。分清動作延續、同場景改機位及換場；鎖定人物／道具／路線狀態，按需要用實際採用尾格接續，不能沿用偏離設計的結果。詳見[鏡頭時長與連續性](references/shot-pacing-and-continuity.md)。
 - **同步製作事實。** 在同一份目前有效的紀錄中追蹤身分、位置、持有關係、接觸、方向、動作起訖與時間基準；舊版連結為歷史。依照[鏡頭與動作](references/camera-and-action.md)處理動作座標系。修正後更新所有受影響的現行產物，不可默默將過時版本當成目前版本。
 - **創作問題預設在對話中提出。** 使用有編號的問題，每題提供 A/B/C 三個簡短選項，也接受字母、混合選擇、自由描述或明確交由助理決定。已知事實不重問，事實問題也不硬塞選項。依照[互動開發](references/interactive-development.md)進行。
 - **對話呈現受限時，交付完整提問檔案。** 專案位置確定後，在專案內存下問題、完整選項與回答方式，並於對話中提供連結。創作與參考路線問題提供三個選項；Hyper3D 的素材範圍與品質各有兩個。預設不使用系統選擇卡。使用者明確指定的互動方式優先。
@@ -50,7 +51,7 @@ description: Direct a standalone short film or selected scenes of a continuing s
 0. 沿用或建立獨立專案，確認這次是新作品、下一章、續作、修訂或分支，摘要目前有效的故事設定、進度與下一步。只針對不清楚的創作範圍提問。
 1. 進行[創作訪談](references/interactive-development.md)，持續用[文件範本](references/production-document-templates.md)記錄原始回答、委託決定事項與未決問題，並提供檔案連結。記下具名角色、機位／手持／長鏡頭偏好、色彩、光線與聲音。平台能力可以先記錄，此時不需探測 Blender 或 Hyper3D MCP。
 2. 在相關分鏡前研究使用者指定的風格。同一輪交付目前範圍的劇本、完整分鏡表及攝影／色彩說明。既有劇本要登記，不可悄悄改寫。長鏡頭內部的節拍不算額外切鏡。真實世界的主張依[研究指引](references/research-evidence-and-reality.md)標示證據程度。
-3. 在製作計畫中解決故事、片長與空間衝突。分配動作、辨識與結果停留時間，說明增減時間的來源。多次生成時建立單元分段表，標明全片時間、單元內時間及接點。依[階段確認](references/production-approval-gates.md)展示產物與下一階段。
+3. 依[鏡頭時長與連續性](references/shot-pacing-and-continuity.md)在製作計畫中解決故事、片長與空間衝突。分配動作、辨識與結果停留時間，說明增減時間的來源。多次生成時建立單元分段表，標明全片時間、單元內時間及接點。依[階段確認](references/production-approval-gates.md)展示產物與下一階段。
 4. 劇本與分鏡表確認後，依[參考路線選擇](references/storyboard-image-workflow.md#參考路線選擇)沿用或詢問 A／B／C。A 按該指引完成本批分鏡圖、成片起始圖及必要外觀素材，一次展示審閱後直接進入第 7 步。B、C 依[影像素材流程](references/reference-image-driven-assets.md)準備必要的場景、道具、成片起始圖及缺少的角色。使用者自行生成時建立缺檔佔位 PNG；由助理生成時保存實際輸出。必要結構圖片確認後，B 直接在 Blender 建立；C 依 [Hyper3D 分支](references/hyper3d-scene-assets.md)先確認工具、授權與連線，再提出具名素材範圍及品質，不重問已選路線。
 5. 僅 B、C：進入 Blender 時，若透過 Blender MCP 操作場景，另依 [Blender MCP 設定](references/blender-mcp-setup.md)確認目標執行個體；只有連線缺失才提供設定協助。依[場景粗模與相機運動](references/scene-blockout-and-camera-motion.md)分小批儲存：拓樸與淨空、可辨識的環境與道具、靜態場景確認、相機／主體／道具的聯合粗動畫，最後審閱動畫。核准的 Hyper3D 資產只用於其登記物件，不新增逐資產確認關卡。
 6. 僅 B、C：靜態結果確認後，定義互動目標、有效距離、每位參與者的狀態與結果。讓角色主要路徑、朝向、圓柱彎曲及道具事件與相機路徑一起動起來。只有規劃中的可見接觸才加入簡化手部 IK。將平順的基本移動與有動機的手持變化分開。只有使用者明確改變代理角色策略，才使用[進階表演](references/animation-and-performance.md)。多段生成時分段儲存動畫工程，完成本批受影響單元後一起展示審閱，將一次確認記錄到各段核准範圍與接點；已確認且未變的靜態場景不重問。
